@@ -1,0 +1,8 @@
+rules:
+  - id: SCREEN-001
+    description: "Incomplete safety screening"
+    conditions:
+      weapon_present: null
+    destination: human_review
+    reason: "Weapon status has not been established."
+    source: "Illustrative project assumption"
