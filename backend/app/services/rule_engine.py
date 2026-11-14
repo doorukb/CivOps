@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from app.services.tripwires import scan_transcript
 
 import yaml
 
@@ -24,9 +25,27 @@ def matches_rule(facts, rule):
     )
 
 
-def evaluate_incident(incident: Incident) -> Decision:
-    rulebook = load_rulebook()
+def evaluate_incident(
+    incident: Incident,
+    rulebook: dict | None = None,
+    transcript: str | None = None
+) -> Decision:
+    if rulebook is None:
+        rulebook = load_rulebook()
     screening = rulebook["screening"]
+
+    if transcript is not None:
+        tripwire_flags = scan_transcript(transcript)
+
+        if tripwire_flags:
+            categories = ", ".join(tripwire_flags.keys())
+
+            return Decision(
+                destination=Destination.HUMAN_REVIEW,
+                rule_id="TRANSCRIPT-TRIPWIRE",
+                reason=f"Transcript contains potential safety signals: {categories}",
+                source="Illustrative transcript safety screening"
+            )
 
     # Stage 1: Known safety concerns
     flagged = [
@@ -134,5 +153,8 @@ def evaluate_incident(incident: Incident) -> Decision:
     return Decision(
         destination=Destination(rule["destination"]),
         rule_id=rule["id"],
-        reason=rule["reason"]
+        reason=rule["reason"],
+        eligible=facts["eligible_call_type"],
+        on_duty=facts["on_duty"],
+        source=rule.get("source")
     )

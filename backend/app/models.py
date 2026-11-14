@@ -41,4 +41,11 @@ class Decision(BaseModel):
     reason: str
     missing_information: list[str] = Field(default_factory=list)
 
+    eligible: bool | None = None
+    on_duty: bool | None = None
+    source: str | None = None
+
+class EvaluationRequest(BaseModel):
+    incident: Incident
+    transcript: str | None = None
     
