@@ -1,0 +1,29 @@
+# Web server
+fastapi
+uvicorn[standard]
+websockets
+
+# Data validation and configuration
+pydantic
+pydantic-settings
+python-dotenv
+PyYAML
+
+# AI and transcription
+anthropic
+deepgram-sdk
+
+# Phone integration
+twilio
+
+# Simulation and data analysis
+simpy
+numpy
+pandas
+
+# Testing
+pytest
+pytest-asyncio
+
+# HTTP requests
+httpx
