@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CallType(str, Enum):
@@ -48,4 +48,37 @@ class Decision(BaseModel):
 class EvaluationRequest(BaseModel):
     incident: Incident
     transcript: str | None = None
-    
+
+class AuditRecord(BaseModel):
+    call_id: str
+    incident: Incident
+    actual_destination: Destination
+
+class AuditRequest(BaseModel):
+    records: list[AuditRecord]
+
+class SimulationConfig(BaseModel):
+    start_hour: int = Field(default=8, ge=0, le=23)
+    end_hour: int = Field(default=16, ge=1, le=24)
+    teams: int = Field(default=3, ge=1, le=20)
+    average_duration_minutes: int = Field(
+        default=60, ge=5, le=240
+    )
+    include_weekends: bool = False
+
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        if self.end_hour <= self.start_hour:
+            raise ValueError(
+                "end_hour must be greater than start_hour"
+            )
+        return self
+
+
+class SimulationResult(BaseModel):
+    total_calls: int
+    eligible_calls: int
+    handled_calls: int
+    missed_off_duty: int
+    missed_busy: int
+    utilization: float
