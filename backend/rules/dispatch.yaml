@@ -1,8 +1,56 @@
-rules:
-  - id: SCREEN-001
-    description: "Incomplete safety screening"
-    conditions:
-      weapon_present: null
+version: "0.1"
+
+screening:
+  safety_fields:
+    - weapon_present
+    - violence
+    - injury
+    - immediate_danger
+
+  escalation:
+    id: SAFETY-ESCALATION
     destination: human_review
-    reason: "Weapon status has not been established."
+    reason: "Reported safety concerns"
+
+  incomplete:
+    id: SCREEN-INCOMPLETE
+    destination: human_review
+    reason: "Safety screening is incomplete."
+
+schedule:
+  timezone: America/New_York
+  weekdays: [0, 1, 2, 3, 4]
+  start_hour: 8
+  end_hour: 16
+
+eligible_call_types:
+  - wellbeing_check
+  - disturbance
+  - suspicious
+
+rules:
+  - id: CRESS-001
+    priority: 1
+    conditions:
+      eligible_call_type: true
+      on_duty: true
+    destination: cress
+    reason: "Eligible incident during CRESS operating hours."
+    source: "Illustrative eligibility assumption"
+
+  - id: CRESS-002
+    priority: 1
+    conditions:
+      eligible_call_type: true
+      on_duty: false
+    destination: cress_followup
+    reason: "Eligible incident outside CRESS operating hours."
+    source: "Illustrative follow-up assumption"
+
+  - id: REVIEW-001
+    priority: 1
+    conditions:
+      eligible_call_type: false
+    destination: human_review
+    reason: "Incident type is not eligible under the illustrative rulebook."
     source: "Illustrative project assumption"

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from app.models import Incident
+from app.models import Incident, Decision
+from app.services.rule_engine import evaluate_incident
 
 app = FastAPI(title="CivOps API")
 
@@ -9,9 +10,6 @@ def root():
     return {"message": "CivOps backend is running!"}
 
 
-@app.post("/calls/evaluate")
+@app.post("/calls/evaluate", response_model=Decision)
 def evaluate_call(incident: Incident):
-    return {
-        "message": "Incident received successfully",
-        "incident": incident.model_dump()
-    }
+    return evaluate_incident(incident)
