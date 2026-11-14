@@ -2,10 +2,34 @@
 .venv/
 venv/
 
-# Python cache
+# Python cache and compiled files
 __pycache__/
 *.pyc
 
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend (React/Vite)
+node_modules/
+dist/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 # Secrets
 .env
 .env.*
