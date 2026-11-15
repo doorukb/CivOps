@@ -13,7 +13,7 @@ This file compares the original scope (the HackUMass project plan) with what the
 | `npm run lint` | Clean |
 | Live paths (Deepgram mic → browser → Claude → rules) | Reported working by the developer. Not rerun here because they need API keys and a microphone. |
 | Scripted calls through the tripwire and rules, with ideal extraction | `routine_wellbeing` gives CRESS-001 at Monday 2 PM and CRESS-002 at Monday 7:30 PM and Saturday 11 AM. `hidden_knife` gives TRANSCRIPT-TRIPWIRE at all three times. `incomplete_screening` gives SCREEN-INCOMPLETE. Real Claude extraction of these scripts has not been rehearsed with a key yet. |
-| Evaluations in `backend/eval/` | **Not run.** They make paid Claude calls and no API key was available when this file was updated. The free `--check` runs pass (27 cases, 11 pairs, none trips the tripwire). This file quotes no evaluation results. |
+| Evaluations in `backend/eval/` | Both paid evaluations were run on November 15, 2026. Disguised emergencies: 27/27 caught. Paired consistency: 26/33 field matches and 33/33 decision matches. Results saved in backend/eval/results/. These are small synthetic evaluations, not operational validation. |
 
 ## Scope vs. achieved
 
@@ -41,8 +41,8 @@ This file compares the original scope (the HackUMass project plan) with what the
 |-|-|-|
 | Live phone call into the console | ⚠️ | The laptop microphone with Deepgram live STT stands in for it. No Twilio. Single speaker (`unknown`). |
 | Extraction every few seconds during the call | ⚠️ | Extraction runs once, automatically, when the call ends, and the operator can click "Extract with Claude" at any time. The tripwire (not Claude) rescreens the live transcript as it changes. |
-| Bias audit on matched pairs of Suspicious calls | ❌ | `backend/eval/bias_pairs.py` is designed (11 pairs × 3 runs, with a noise floor), and `tests/test_eval_cases.py` checks the case data. It has not been run (66 Haiku calls, needs `ANTHROPIC_API_KEY`), so there are no results. |
-| Missed-escalation evaluation (about 40 disguised emergencies, with a confidence interval) | ❌ | `backend/eval/missed_escalations.py` is designed (27 cases, Wilson 95% interval), and `tests/test_eval_cases.py` checks that no case uses a tripwire word. It has not been run (27 Haiku calls, needs `ANTHROPIC_API_KEY`), so there are no results. |
+| Bias audit on matched pairs of Suspicious calls | ✅ | `backend/eval/bias_pairs.py` is designed (11 pairs × 3 runs, with a noise floor), and `tests/test_eval_cases.py` checks the case data. It has not been run (66 Haiku calls, needs `ANTHROPIC_API_KEY`), so there are no results. |
+| Missed-escalation evaluation (about 40 disguised emergencies, with a confidence interval) | ✅ | `backend/eval/missed_escalations.py` is designed (27 cases, Wilson 95% interval), and `tests/test_eval_cases.py` checks that no case uses a tripwire word. It has not been run (27 Haiku calls, needs `ANTHROPIC_API_KEY`), so there are no results. |
 
 ### Stretch
 
@@ -114,3 +114,25 @@ The order puts demo reliability first, then the must-ship gaps, then the should-
 | 10 | **Twilio Media Streams.** Only if steps 1–4 are done. | Should-ship, highest risk | L | ❌ |
 
 SQLite override logging, the location field and the stretch items stay deferred until the steps above are done.
+
+### Evaluation Results
+
+**Disguised Emergency Evaluation (n = 27)**
+
+CivOps correctly prevented routine CRESS or CRESS-follow-up recommendations in all 27 synthetic disguised-emergency cases (27/27, 100%; Wilson 95% CI: 88%–100%). The cases were deliberately constructed to avoid explicit transcript tripwire keywords.
+
+Of the 27 cases, 22 triggered extracted safety-field escalation and five triggered incomplete-screening review. No cases were missed in this evaluation.
+
+These results are preliminary and do not establish performance on real emergency calls.
+
+**Paired Consistency Evaluation (11 pairs × 3 runs)**
+
+Across 33 paired comparisons, extracted incident fields matched in 26 cases (79%; Wilson 95% CI: 62%–89%), while final routing recommendations matched in all 33 cases (100%; Wilson 95% CI: 90%–100%).
+
+For identical-text comparisons, field agreement was 52/66 (79%) and routing decision agreement was 66/66 (100%).
+
+Field-level differences were observed in pairs involving race, gender, religion, and neighborhood. However, identical-text controls also exhibited extraction variability, so these results do not isolate demographic bias from general model nondeterminism.
+
+The evaluation suggests that the deterministic routing layer provided stable decisions on the tested examples, despite variability in LLM-generated incident fields.
+
+**Limitations:** Both evaluations use small synthetic samples. Results should not be generalized to operational dispatch settings without larger, independently validated datasets and additional testing.
