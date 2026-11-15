@@ -82,3 +82,9 @@ class SimulationResult(BaseModel):
     missed_off_duty: int
     missed_busy: int
     utilization: float
+
+class TranscriptEvent(BaseModel):
+    speaker: str
+    text: str
+    is_final: bool
+    t: float = Field(ge=0)

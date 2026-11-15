@@ -374,3 +374,98 @@ th {
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+
+.speech-status {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.speech-online {
+  color: #34d399;
+}
+
+.speech-offline {
+  color: #f87171;
+}
+
+.live-interim {
+  padding: 14px;
+  background: #172f46;
+  border-left: 3px solid #38bdf8;
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.secondary-button {
+  background: transparent;
+  border: 1px solid #475569;
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  background: #1e293b;
+  border-color: #94a3b8;
+}
+
+.extraction-actions .secondary-button {
+  width: auto;
+  align-self: flex-start;
+}
+
+.call-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.start-call-button,
+.end-call-button {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 22px;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.start-call-button {
+  background: #059669;
+}
+
+.start-call-button:hover {
+  background: #047857;
+}
+
+.end-call-button {
+  background: #dc2626;
+}
+
+.end-call-button:hover {
+  background: #b91c1c;
+}
+
+.start-call-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.call-live {
+  color: #34d399;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.call-idle {
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 1px;
+}

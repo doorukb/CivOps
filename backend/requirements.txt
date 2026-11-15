@@ -27,3 +27,6 @@ pytest-asyncio
 
 # HTTP requests
 httpx
+
+# Deepgram
+deepgram-sdk

@@ -74,8 +74,6 @@ def extract_incident(transcript: str) -> Incident:
     extracted = response.parsed_output
     if extracted is None:
         raise ValueError("Claude returned no structured incident")
-    print("RAW CLAUDE EXTRACTION:")
-    print(extracted.model_dump_json(indent=2))
 
     # Validate evidence against the original transcript.
     # Never accept an unsupported explicit safety value.

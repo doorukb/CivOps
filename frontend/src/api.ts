@@ -146,3 +146,46 @@ export async function extractCall(
 
   return response.json()
 }
+
+export interface TranscriptEvent {
+  speaker: string
+  text: string
+  is_final: boolean
+  t: number
+}
+
+export async function startCallRecording(): Promise<void> {
+  const response = await fetch('/api/calls/start', {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to start recording: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  if (result.status === 'already_running') {
+    throw new Error('A microphone session is already running')
+  }
+
+  if (result.status !== 'starting') {
+    throw new Error(`Unexpected start status: ${result.status}`)
+  }
+}
+
+export async function stopCallRecording(): Promise<void> {
+  const response = await fetch('/api/calls/end', {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to stop recording: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  if (!['stopping', 'not_running'].includes(result.status)) {
+    throw new Error(`Unexpected stop status: ${result.status}`)
+  }
+}
