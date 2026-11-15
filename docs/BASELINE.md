@@ -71,6 +71,8 @@ These come from the handoff's §10 and §16, and the code confirms them:
 6. **Audit replay skips tripwires.** `AuditRecord` has no transcript field.
 7. **Fixed timestamp.** Live Call uses the hard-coded `2026-11-16T10:00-05:00` instead of the call's real time.
 
+**Update:** defects 1 and 2 (start/stop races, last words lost) are addressed by `__call_started__` / `__call_ended__` / `__call_error__` markers, and the UI now waits for the end marker. Scripted calls (`/scenarios`) and `/calls/screen` exist. Not yet tested against a real microphone. Call IDs are still not implemented, so the late-event-from-a-previous-call case is only covered by the one-session-at-a-time rule.
+
 ## Setup fixes made for this baseline
 
 - Added `sounddevice` to `requirements.txt`. Before this, `tests/test_api.py` failed to import on a clean clone. Pinned the package versions that were tested together and removed a duplicate `deepgram-sdk[pytest]` entry.

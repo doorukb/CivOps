@@ -174,7 +174,7 @@ export async function startCallRecording(): Promise<void> {
   }
 }
 
-export async function stopCallRecording(): Promise<void> {
+export async function stopCallRecording(): Promise<string> {
   const response = await fetch('/api/calls/end', {
     method: 'POST',
   })
@@ -188,4 +188,6 @@ export async function stopCallRecording(): Promise<void> {
   if (!['stopping', 'not_running'].includes(result.status)) {
     throw new Error(`Unexpected stop status: ${result.status}`)
   }
+
+  return result.status
 }

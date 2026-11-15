@@ -46,8 +46,20 @@ export default function LiveCall() {
 
     socket.onmessage = (message) => {
         const event: TranscriptEvent = JSON.parse(message.data)
-        // Lifecycle markers (__call_started__ etc.) are not speech
-        if (event.speaker === 'system' || !callActiveRef.current) {
+        // Lifecycle markers from the backend; they are never speech.
+        // __call_ended__ arrives after the last words, so only now stop listening.
+        if (event.speaker === 'system') {
+            if (event.text === '__call_ended__' || event.text === '__call_error__') {
+                callActiveRef.current = false
+                setCallActive(false)
+                setLiveInterim('')
+                if (event.text === '__call_error__') {
+                    setCallError('The call ended with an error (check the backend log)')
+                }
+            }
+            return
+        }
+        if (!callActiveRef.current) {
             return
         }
         if (event.is_final) {
@@ -94,6 +106,10 @@ export default function LiveCall() {
         setCallBusy(true)
         setCallError(null)
 
+        // Accept events from the very first word, not after the request returns
+        callActiveRef.current = true
+        setCallActive(true)
+
         try {
             await startCallRecording()
 
@@ -113,9 +129,9 @@ export default function LiveCall() {
             evidence: {},
             })
 
-            callActiveRef.current = true
-            setCallActive(true)
         } catch (err) {
+            callActiveRef.current = false
+            setCallActive(false)
             setCallError(
             err instanceof Error ? err.message : 'Could not start call'
             )
@@ -129,11 +145,15 @@ async function endCall() {
   setCallError(null)
 
   try {
-    await stopCallRecording()
+    const status = await stopCallRecording()
 
-    callActiveRef.current = false
-    setCallActive(false)
-    setLiveInterim('')
+    // Normally the backend's __call_ended__ marker closes the call, after the
+    // final words. If nothing was running, no marker will come.
+    if (status === 'not_running') {
+      callActiveRef.current = false
+      setCallActive(false)
+      setLiveInterim('')
+    }
   } catch (err) {
     setCallError(
       err instanceof Error ? err.message : 'Could not end call'
