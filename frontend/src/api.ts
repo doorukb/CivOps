@@ -51,6 +51,7 @@ export interface SimulationConfig {
   teams: number
   average_duration_minutes: number
   include_weekends: boolean
+  include_noise_complaints?: boolean
 }
 
 export interface SimulationResult {
@@ -81,6 +82,48 @@ export async function runSimulation(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ config, incidents }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Simulation API returned ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export interface MetricBand {
+  mean: number
+  p10: number
+  p90: number
+}
+
+export type ComparisonMetric =
+  | 'calls_per_week'
+  | 'share_handled'
+  | 'missed_off_duty'
+  | 'missed_busy'
+  | 'utilization'
+
+export interface ComparisonResult {
+  replications: number
+  horizon_weeks: number
+  baseline: Record<ComparisonMetric, MetricBand>
+  scenario: Record<ComparisonMetric, MetricBand>
+  difference: Record<ComparisonMetric, MetricBand>
+  assumptions: string[]
+}
+
+export async function compareScenarios(
+  baseline: SimulationConfig,
+  scenario: SimulationConfig,
+  replications = 50
+): Promise<ComparisonResult> {
+  const response = await fetch('/api/simulation/compare', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ baseline, scenario, replications }),
   })
 
   if (!response.ok) {
@@ -191,4 +234,66 @@ export async function stopCallRecording(): Promise<string> {
   }
 
   return result.status
+}
+
+// System events the backend sends in the transcript stream (speaker "system")
+export const CALL_STARTED = '__call_started__'
+export const CALL_ENDED = '__call_ended__'
+export const CALL_ERROR = '__call_error__'
+
+export interface Scenario {
+  id: string
+  title: string
+  segments: number
+}
+
+export async function listScenarios(): Promise<Scenario[]> {
+  const response = await fetch('/api/scenarios')
+
+  if (!response.ok) {
+    throw new Error(`Failed to list scenarios: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function playScenario(id: string): Promise<void> {
+  const response = await fetch(
+    `/api/scenarios/${encodeURIComponent(id)}/play`,
+    { method: 'POST' }
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to play scenario: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  if (result.status === 'already_running') {
+    throw new Error('A call or scripted scenario is already running')
+  }
+
+  if (result.status !== 'started') {
+    throw new Error(`Unexpected play status: ${result.status}`)
+  }
+}
+
+export async function screenTranscript(
+  text: string
+): Promise<Record<string, string[]>> {
+  const response = await fetch('/api/calls/screen', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ transcript: text }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Transcript screening failed: ${response.status}`)
+  }
+
+  const result = await response.json()
+
+  return result.tripwire_flags
 }
