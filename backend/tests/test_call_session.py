@@ -25,6 +25,14 @@ def test_only_hidden_emergency_has_tripwire_word(scenario_id):
     assert bool(scan_transcript(text)) == (scenario_id == HIDDEN)
 
 
+def test_routine_script_asks_all_four_questions():
+    asked = " ".join(
+        t for s, t in SCENARIOS["routine_wellbeing"].lines if s == "dispatcher"
+    ).lower()
+    for topic in ("weapons", "violent", "injured", "immediate danger"):
+        assert topic in asked
+
+
 def test_routine_answers_are_full_sentences():
     caller = [t for s, t in SCENARIOS["routine_wellbeing"].lines if s == "caller"]
     assert sum(t.startswith("No, ") and len(t.split()) > 3 for t in caller) == 4

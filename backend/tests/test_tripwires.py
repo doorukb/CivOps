@@ -1,3 +1,5 @@
+import pytest
+
 from app.services.tripwires import scan_transcript
 
 
@@ -35,18 +37,28 @@ def test_no_false_substring_match():
     assert "weapon" not in result
 
 
-def test_variants_missed_before():
-    cases = {
-        "weapon": ["two guns", "kitchen knives", "he stabbed him", "shots fired"],
-        "violence": ["he is attacking her", "being strangled", "punching him"],
-        "injury": ["there is blood", "she is unresponsive", "he collapsed"],
-        "medical": ["he can't breathe", "can’t breathe", "chest pain", "overdosed"],
-        "self_harm": ["he is suicidal", "wants to die", "end my life"],
-        "threat": ["I will kill him", "he is gonna hurt me", "threatening to shoot"],
-    }
-    for category, texts in cases.items():
-        for text in texts:
-            assert category in scan_transcript(text), (category, text)
+PHRASINGS = {
+    "weapon": ["two guns", "kitchen knives", "he stabbed him", "shots fired"],
+    "violence": ["he is attacking her", "being strangled", "punching him"],
+    "injury": ["there is blood", "she is unresponsive", "he collapsed"],
+    "medical": ["he can't breathe", "can’t breathe", "chest pain", "overdosed"],
+    "self_harm": ["he is suicidal", "wants to die", "end my life"],
+    "threat": ["I will kill him", "he is gonna hurt me", "threatening to shoot"],
+}
+
+
+@pytest.mark.parametrize(
+    "category, text",
+    [(c, t) for c, texts in PHRASINGS.items() for t in texts],
+)
+def test_phrasing_flags_category(category, text):
+    assert category in scan_transcript(text)
+
+
+def test_negation_is_not_understood():
+    # Known limitation: matching is lexical, so denials still ask for review.
+    assert "weapon" in scan_transcript("He does NOT have a gun.")
+    assert "injury" in scan_transcript("Nobody is bleeding.")
 
 
 def test_screening_question_words_do_not_flag():

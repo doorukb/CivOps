@@ -49,6 +49,9 @@ def test_scripted_call_emits_started_speech_ended():
     assert events[-1]["text"] == "__call_ended__"
     speech = [e for e in events if e["speaker"] != "system"]
     assert speech and all(e["is_final"] for e in speech)
+    assert [e["text"] for e in speech] == [
+        text for _, text in main.SCENARIOS["hidden_knife"][1]
+    ]
     assert any("knife" in e["text"] for e in speech)
 
 

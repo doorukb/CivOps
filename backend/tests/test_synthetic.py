@@ -1,4 +1,14 @@
-from app.services.synthetic import generate_synthetic_month
+from collections import Counter
+
+from app.models import Destination
+from app.services.rule_engine import evaluate_incident, load_rulebook
+from app.services.synthetic import (
+    SAFETY_FIELDS,
+    TRUE_SAFETY_RATE,
+    UNKNOWN_SAFETY_RATE,
+    cress_on_duty,
+    generate_synthetic_month,
+)
 
 
 def test_synthetic_month():
@@ -7,16 +17,6 @@ def test_synthetic_month():
     assert len(records) == 100
     assert len(set(r.call_id for r in records)) == 100
     assert all(r.call_id.startswith("SYN-") for r in records)
-
-from collections import Counter
-
-from app.models import Destination
-from app.services.synthetic import (
-    SAFETY_FIELDS,
-    TRUE_SAFETY_RATE,
-    UNKNOWN_SAFETY_RATE,
-    cress_on_duty,
-)
 
 
 def test_same_seed_same_month():
@@ -54,3 +54,13 @@ def test_safety_answers_are_rare_and_single():
 
     assert abs(counts["true"] / 4000 - TRUE_SAFETY_RATE) < 0.02
     assert abs(counts["unknown"] / 4000 - UNKNOWN_SAFETY_RATE) < 0.02
+
+
+def test_default_month_produces_safety_and_incomplete_outcomes():
+    rulebook = load_rulebook()
+    rules = Counter(
+        evaluate_incident(r.incident, rulebook).rule_id
+        for r in generate_synthetic_month()
+    )
+    assert rules["SAFETY-ESCALATION"] > 0
+    assert rules["SCREEN-INCOMPLETE"] > 0

@@ -171,7 +171,7 @@ def test_equal_start_end_hours():
             end_hour=8
         )
 
-from datetime import date
+from datetime import date, timedelta
 
 from app.services.simulator import run_comparison
 
@@ -246,11 +246,95 @@ def test_run_comparison():
 
 
 def test_run_comparison_one_team_long_calls_misses_busy():
-    tight = SimulationConfig(teams=1, average_duration_minutes=180)
+    tight = SimulationConfig(teams=1, average_duration_minutes=240)
     result = run_comparison(tight, tight, replications=20)
 
     assert result["baseline"]["missed_busy"]["mean"] > 3
-    assert result["difference"]["missed_busy"]["mean"] == 0
+
+
+def test_identical_configs_give_zero_paired_difference():
+    config = SimulationConfig(teams=2, average_duration_minutes=120)
+    result = run_comparison(config, config, replications=10)
+
+    for band in result["difference"].values():
+        assert band == {"mean": 0, "p10": 0, "p90": 0}
+
+
+def test_both_scenarios_see_the_same_calls(monkeypatch):
+    import app.services.simulator as simulator
+
+    seen = []
+    real = simulator.simulate_incidents
+
+    def spy(calls, config, *args):
+        seen.append((calls, args[2]))
+        return real(calls, config, *args)
+
+    monkeypatch.setattr(simulator, "simulate_incidents", spy)
+    run_comparison(SimulationConfig(), SimulationConfig(end_hour=20), replications=5)
+
+    assert len(seen) == 10
+    for baseline, scenario in zip(seen[::2], seen[1::2]):
+        assert baseline == scenario  # same calls, same duration multipliers
+
+
+# 20 teams never run out, so share handled is just schedule coverage:
+# the validation the brief promised (22%, 36%, 55%).
+@pytest.mark.parametrize(
+    "config, expected",
+    [
+        (SimulationConfig(teams=20), 0.22),
+        (SimulationConfig(teams=20, end_hour=20), 0.36),
+        (SimulationConfig(teams=20, end_hour=20, include_weekends=True), 0.55),
+    ],
+)
+def test_twenty_teams_reproduce_brief_coverage(config, expected):
+    result = run_comparison(config, config, replications=50)
+    assert result["baseline"]["share_handled"]["mean"] == pytest.approx(expected, abs=0.02)
+    assert result["baseline"]["missed_busy"]["mean"] == 0
+
+
+def _replications(n=20):
+    from app.services.leap_arrivals import duration_multiplier, generate_calls
+    import random
+
+    start = date(2026, 1, 5)
+    for seed in range(n):
+        rng = random.Random(seed)
+        calls = generate_calls(rng, start, 4)
+        yield calls, start, start + timedelta(weeks=4), [duration_multiplier(rng) for _ in calls]
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        SimulationConfig(),
+        SimulationConfig(teams=1, average_duration_minutes=240),
+        SimulationConfig(teams=2, end_hour=24, include_weekends=True, include_noise_complaints=True),
+    ],
+)
+def test_outcomes_partition_eligible_and_utilization_is_a_share(config):
+    for calls, start, end, mult in _replications(5):
+        r = simulate_incidents(calls, config, start, end, mult)
+        assert r.handled_calls + r.missed_off_duty + r.missed_busy == r.eligible_calls
+        assert 0 <= r.utilization <= 1
+
+
+@pytest.mark.parametrize(
+    "wider",
+    [
+        SimulationConfig(end_hour=20),
+        SimulationConfig(end_hour=20, include_weekends=True),
+        SimulationConfig(include_noise_complaints=True),
+    ],
+)
+def test_longer_hours_or_noise_never_reduce_handled(wider):
+    # ponytail: holds for the default 3 teams x 60 min; with 1 team and long
+    # calls an extra accepted call can block several later ones (loss system).
+    for calls, start, end, mult in _replications():
+        base = simulate_incidents(calls, SimulationConfig(), start, end, mult)
+        more = simulate_incidents(calls, wider, start, end, mult)
+        assert more.handled_calls >= base.handled_calls
 
 
 from fastapi.testclient import TestClient
