@@ -28,6 +28,7 @@ export interface AuditResponse {
     month: number
     synthetic: boolean
     calibrated_to_leap: boolean
+    arrival_pattern: string
     count: number
   }
   summary: AuditSummary

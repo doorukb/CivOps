@@ -36,6 +36,11 @@ def demo_audit():
             "month": 11,
             "synthetic": True,
             "calibrated_to_leap": False,
+            "arrival_pattern": (
+                "Call timing is fitted to coverage totals derived from LEAP's "
+                "2019 analysis. Call mix, safety answers and \"actual\" "
+                "dispatch outcomes are assumptions."
+            ),
             "count": len(records)
         },
         "summary": summary,
