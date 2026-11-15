@@ -265,3 +265,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local test audio and call recordings (never commit)
+*.m4a
+*.wav
+*.mp3
