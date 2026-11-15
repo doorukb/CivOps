@@ -1,11 +1,13 @@
 import random
+import numpy as np
 import simpy
 
 from app.models import SimulationConfig, SimulationResult
 from copy import deepcopy
 from app.models import Incident
 from app.services.rule_engine import evaluate_incident, load_rulebook
-from datetime import datetime, time, timedelta
+from app.services.leap_arrivals import duration_multiplier, generate_calls
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 
@@ -73,12 +75,23 @@ def build_scenario_rulebook(config: SimulationConfig) -> dict:
     if config.include_weekends:
         rulebook["schedule"]["weekdays"] = list(range(7))
 
+    if config.include_noise_complaints:
+        rulebook["eligible_call_types"].append("noise_complaint")
+
     return rulebook
 
 def simulate_incidents(
     incidents: list[Incident],
-    config: SimulationConfig
+    config: SimulationConfig,
+    horizon_start: date | None = None,
+    horizon_end: date | None = None,
+    duration_multipliers: list[float] | None = None
 ) -> SimulationResult:
+    """
+    horizon_start/horizon_end are local dates, end exclusive. When given they fix
+    the utilization denominator; otherwise it spans the first to last call.
+    duration_multipliers[i] scales the duration of incidents[i].
+    """
 
     rulebook = build_scenario_rulebook(config)
     env = simpy.Environment()
@@ -92,11 +105,17 @@ def simulate_incidents(
         "busy_team_minutes": 0.0
     }
 
-    # Sort calls by arrival time
-    sorted_incidents = sorted(
-        incidents,
-        key=lambda incident: incident.timestamp
+    if duration_multipliers is None:
+        duration_multipliers = [1.0] * len(incidents)
+    elif len(duration_multipliers) != len(incidents):
+        raise ValueError("duration_multipliers must match incidents")
+
+    # Sort calls by arrival time, each with its own duration multiplier
+    sorted_pairs = sorted(
+        zip(incidents, duration_multipliers),
+        key=lambda pair: pair[0].timestamp
     )
+    sorted_incidents = [incident for incident, _ in sorted_pairs]
 
     if not sorted_incidents:
         return SimulationResult(
@@ -148,7 +167,7 @@ def simulate_incidents(
     def arrival_process():
         previous_minutes = 0.0
 
-        for incident in sorted_incidents:
+        for incident, multiplier in sorted_pairs:
             minutes = (
                 incident.timestamp - start_time
             ).total_seconds() / 60
@@ -180,7 +199,7 @@ def simulate_incidents(
             env.process(
                 handle_call(
                     request,
-                    config.average_duration_minutes,
+                    config.average_duration_minutes * multiplier,
                     incident.timestamp
                 )
             )
@@ -191,8 +210,12 @@ def simulate_incidents(
     # Calculate scheduled capacity across the simulation period
     timezone = ZoneInfo(rulebook["schedule"]["timezone"])
 
-    first_day = sorted_incidents[0].timestamp.astimezone(timezone).date()
-    last_day = sorted_incidents[-1].timestamp.astimezone(timezone).date()
+    if horizon_start is not None and horizon_end is not None:
+        first_day = horizon_start
+        last_day = horizon_end - timedelta(days=1)
+    else:
+        first_day = sorted_incidents[0].timestamp.astimezone(timezone).date()
+        last_day = sorted_incidents[-1].timestamp.astimezone(timezone).date()
 
     scheduled_days = 0
     current_day = first_day
@@ -225,3 +248,78 @@ def simulate_incidents(
         missed_busy=metrics["missed_busy"],
         utilization=utilization
     )
+
+ASSUMPTIONS = [
+    "Call arrival times are fitted to coverage totals, not copied from LEAP's tables, and volume is about 47 calls per week.",
+    "Every eligible on-duty call goes to CRESS, so results are a ceiling on what CRESS could take, not what dispatch sends today (public testimony says roughly half a dozen a month).",
+    "There is no queue or travel time: a call that arrives when every team is busy is missed, not held.",
+    "Utilization counts only dispatch-sent calls; CRESS's direct work is not modeled.",
+    "Each handled call counts as one police call avoided.",
+    "Call length is the configured average times a random multiplier with mean about 1 and spread set by duration_cv.",
+]
+
+METRICS = (
+    "calls_per_week", "share_handled", "missed_off_duty", "missed_busy", "utilization"
+)
+
+
+def _summarize(values) -> dict[str, float]:
+    return {
+        "mean": float(np.mean(values)),
+        "p10": float(np.percentile(values, 10)),
+        "p90": float(np.percentile(values, 90)),
+    }
+
+
+def run_comparison(
+    baseline: SimulationConfig,
+    scenario: SimulationConfig,
+    replications: int = 50,
+    seed: int = 42,
+    calls_per_week: float = 47,
+    horizon_weeks: int = 4,
+    duration_cv: float = 0.5
+) -> dict:
+    """
+    Run both configs on the same generated calls, once per replication.
+
+    calls_per_week is handled calls per week (police calls avoided); missed and
+    share_handled are per horizon. share_handled is handled / eligible, and
+    "difference" is scenario minus baseline within each replication.
+    """
+    start = date(2026, 1, 5)  # a Monday
+    end = start + timedelta(weeks=horizon_weeks)
+    samples = {name: {m: [] for m in METRICS} for name in ("baseline", "scenario")}
+
+    for replication in range(replications):
+        rng = random.Random(seed + replication)
+        calls = generate_calls(rng, start, horizon_weeks, calls_per_week)
+        multipliers = [duration_multiplier(rng, duration_cv) for _ in calls]
+
+        for name, config in (("baseline", baseline), ("scenario", scenario)):
+            result = simulate_incidents(
+                calls, config, start, end, multipliers
+            )
+            row = samples[name]
+            row["calls_per_week"].append(result.handled_calls / horizon_weeks)
+            row["share_handled"].append(
+                result.handled_calls / result.eligible_calls
+                if result.eligible_calls else 0.0
+            )
+            row["missed_off_duty"].append(result.missed_off_duty)
+            row["missed_busy"].append(result.missed_busy)
+            row["utilization"].append(result.utilization)
+
+    return {
+        "replications": replications,
+        "horizon_weeks": horizon_weeks,
+        "baseline": {m: _summarize(samples["baseline"][m]) for m in METRICS},
+        "scenario": {m: _summarize(samples["scenario"][m]) for m in METRICS},
+        "difference": {
+            m: _summarize(
+                np.array(samples["scenario"][m]) - np.array(samples["baseline"][m])
+            )
+            for m in METRICS
+        },
+        "assumptions": ASSUMPTIONS,
+    }

@@ -53,6 +53,7 @@ class AuditRecord(BaseModel):
     call_id: str
     incident: Incident
     actual_destination: Destination
+    transcript: str | None = None  # scanned by the tripwires when present
 
 class AuditRequest(BaseModel):
     records: list[AuditRecord]
@@ -65,6 +66,7 @@ class SimulationConfig(BaseModel):
         default=60, ge=5, le=240
     )
     include_weekends: bool = False
+    include_noise_complaints: bool = False
 
     @model_validator(mode="after")
     def validate_schedule(self):

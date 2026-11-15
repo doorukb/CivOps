@@ -1,9 +1,9 @@
+import calendar
 import random
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime
 
-from app.models import Incident, AuditRecord, Destination
-
+from app.models import AuditRecord, Destination, Incident
+from app.services.leap_arrivals import DAY_WEIGHTS, HOUR_WEIGHTS, TIMEZONE
 
 CALL_TYPES = [
     "wellbeing_check",
@@ -13,6 +13,56 @@ CALL_TYPES = [
     "other",
 ]
 
+# ---------------------------------------------------------------------------
+# ASSUMPTIONS about what dispatch "actually" did. These are deliberately
+# independent of rules/dispatch.yaml so the audit can disagree with dispatch.
+# None of these rates is measured; they are demo inputs.
+# ---------------------------------------------------------------------------
+
+# When CRESS really works (Monday=0 .. Friday=4, 08:00 up to 16:00 local).
+ACTUAL_CRESS_WEEKDAYS = (0, 1, 2, 3, 4)
+ACTUAL_CRESS_START_HOUR = 8
+ACTUAL_CRESS_END_HOUR = 16
+
+# Call types dispatch considers referable to CRESS (noise complaints excluded).
+ACTUAL_REFERRABLE_TYPES = ("wellbeing_check", "disturbance", "suspicious")
+
+# Share of referrable calls, arriving while CRESS works and with no true
+# safety flag, that dispatch actually refers.
+ACTUAL_REFERRAL_RATE = 0.25
+
+# Share of other calls arriving while CRESS works that dispatch sends to
+# CRESS anyway (any type, any safety answer): a misroute.
+ACTUAL_MISROUTE_RATE = 0.03
+
+# Share of calls with exactly one true / exactly one unknown safety answer.
+# The two are mutually exclusive; every other call has all four answers False.
+TRUE_SAFETY_RATE = 0.08
+UNKNOWN_SAFETY_RATE = 0.05
+
+SAFETY_FIELDS = ("weapon_present", "violence", "injury", "immediate_danger")
+
+
+def random_timestamp(rng: random.Random, year: int, month: int) -> datetime:
+    """Draw a local timestamp in the month from the shared hour/day weights."""
+    days = range(1, calendar.monthrange(year, month)[1] + 1)
+    day = rng.choices(
+        days,
+        [DAY_WEIGHTS[datetime(year, month, d).weekday()] for d in days],
+    )[0]
+    hour = rng.choices(range(24), HOUR_WEIGHTS)[0]
+
+    return datetime(
+        year, month, day, hour, rng.randrange(60), tzinfo=TIMEZONE
+    )
+
+
+def cress_on_duty(timestamp) -> bool:
+    return (
+        timestamp.weekday() in ACTUAL_CRESS_WEEKDAYS
+        and ACTUAL_CRESS_START_HOUR <= timestamp.hour < ACTUAL_CRESS_END_HOUR
+    )
+
 
 def generate_synthetic_month(
     year: int = 2026,
@@ -21,42 +71,50 @@ def generate_synthetic_month(
     seed: int = 42
 ) -> list[AuditRecord]:
     rng = random.Random(seed)
-
-    start = datetime(year, month, 1, tzinfo=ZoneInfo("America/New_York"))
-
-    if month == 12:
-        end = datetime(year + 1, 1, 1, tzinfo=start.tzinfo)
-    else:
-        end = datetime(year, month + 1, 1, tzinfo=start.tzinfo)
-
-    total_minutes = int((end - start).total_seconds() / 60)
-
     records = []
 
     for index in range(count):
-        timestamp = start + timedelta(
-            minutes=rng.randrange(total_minutes)
-        )
-
+        timestamp = random_timestamp(rng, year, month)
         call_type = rng.choice(CALL_TYPES)
 
-        record = AuditRecord(
+        # Draw everything for a call up front so the sequence per call
+        # does not depend on which branch it takes.
+        safety_draw = rng.random()
+        flagged_field = rng.choice(SAFETY_FIELDS)
+        referral_draw = rng.random()
+        misroute_draw = rng.random()
+
+        safety = {field: False for field in SAFETY_FIELDS}
+        has_true_flag = safety_draw < TRUE_SAFETY_RATE
+
+        if has_true_flag:
+            safety[flagged_field] = True
+        elif safety_draw < TRUE_SAFETY_RATE + UNKNOWN_SAFETY_RATE:
+            safety[flagged_field] = None
+
+        if safety["injury"] is True:
+            destination = Destination.FIRE_EMS
+        else:
+            destination = Destination.POLICE
+
+        if cress_on_duty(timestamp):
+            referred = (
+                call_type in ACTUAL_REFERRABLE_TYPES
+                and not has_true_flag
+                and referral_draw < ACTUAL_REFERRAL_RATE
+            )
+
+            if referred or misroute_draw < ACTUAL_MISROUTE_RATE:
+                destination = Destination.CRESS
+
+        records.append(AuditRecord(
             call_id=f"SYN-{index + 1:04d}",
             incident=Incident(
                 call_type=call_type,
-                weapon_present=False,
-                violence=False,
-                injury=False,
-                immediate_danger=False,
-                timestamp=timestamp
+                timestamp=timestamp,
+                **safety
             ),
-            actual_destination=rng.choice([
-                Destination.POLICE,
-                Destination.CRESS,
-                Destination.HUMAN_REVIEW
-            ])
-        )
-
-        records.append(record)
+            actual_destination=destination
+        ))
 
     return records

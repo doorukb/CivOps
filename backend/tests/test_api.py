@@ -95,6 +95,8 @@ def test_audit_demo_endpoint():
 
     assert data["dataset"]["synthetic"] is True
     assert data["dataset"]["calibrated_to_leap"] is False
+    assert "fitted to the coverage totals" in data["dataset"]["arrival_pattern"]
+    assert "invented" in data["dataset"]["arrival_pattern"]
     assert data["summary"]["total_calls"] == 250
     assert len(data["results"]) == 250
 

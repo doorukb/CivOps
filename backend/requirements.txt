@@ -1,15 +1,15 @@
-# Versions verified together on 2026-11-15 (Python 3.13, 43 tests passing).
+# Versions verified together on 2026-11-15 (Python 3.13, 142 tests passing).
 
-# Web server
+# Web server (uvicorn[standard] brings in websockets for /ws/transcript)
 fastapi==0.163.1
 uvicorn[standard]==0.54.0
-websockets
 
 # Data validation and configuration
 pydantic==2.14.3
-pydantic-settings
 python-dotenv==1.2.4
 PyYAML==6.0.3
+# IANA time zones for zoneinfo (Windows has no system tz database; pandas used to pull this in)
+tzdata==2026.6
 
 # AI and transcription
 anthropic==2.8.0
@@ -18,15 +18,10 @@ deepgram-sdk==7.19.0
 # Live microphone capture (imported by app.main via scripts/live_microphone.py)
 sounddevice==0.5.6
 
-# Phone integration (planned, not implemented yet)
-twilio==9.13.0
-
-# Simulation and data analysis
+# Simulation
 simpy==4.1.2
 numpy==2.5.4
-pandas==3.1.1
 
 # Testing
 pytest==9.2.0
-pytest-asyncio
 httpx==0.28.1

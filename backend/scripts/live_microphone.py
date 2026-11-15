@@ -11,15 +11,18 @@ from deepgram.listen.v1.types import ListenV1Results
 from app.models import TranscriptEvent
 
 import json
+import os
 from urllib.request import Request, urlopen
 
 load_dotenv()
+
+API_URL = os.environ.get("CIVOPS_API_URL", "http://127.0.0.1:8000")
 
 SAMPLE_RATE = 16000
 CHUNK_SIZE = 1600  # 100 milliseconds of audio
 
 def publish_event(event: TranscriptEvent):
-    url = "http://127.0.0.1:8000/transcript/event"
+    url = f"{API_URL}/transcript/event"
 
     data = event.model_dump_json().encode("utf-8")
 
@@ -37,7 +40,7 @@ def publish_event(event: TranscriptEvent):
     except Exception as error:
         print("Failed to publish transcript:", error)
 
-def main(stop_event=None):
+def main(stop_event=None, on_ready=None):
     if stop_event is None:
         stop_event = threading.Event()
     client = DeepgramClient()
@@ -137,7 +140,9 @@ def main(stop_event=None):
             blocksize=CHUNK_SIZE,
             callback=microphone_callback,
         ):
-            start = time.monotonic()
+            if on_ready:
+                on_ready()  # microphone is open and audio is flowing
+
 
             try:
                 while not stop_event.is_set():
