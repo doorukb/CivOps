@@ -1,8 +1,11 @@
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Awaitable, Callable
 
 from app.models import TranscriptEvent
+
+logger = logging.getLogger(__name__)
 
 CALL_STARTED = "__call_started__"
 CALL_ENDED = "__call_ended__"
@@ -85,6 +88,7 @@ async def play_scenario(
 ) -> None:
     scenario = SCENARIOS[scenario_id]  # KeyError before STARTED: nothing to close
     t = 0.0
+    marker = CALL_ENDED
 
     await broadcast(system_event(CALL_STARTED))
     try:
@@ -102,6 +106,10 @@ async def play_scenario(
             await broadcast(
                 TranscriptEvent(speaker=speaker, text=text, is_final=True, t=t)
             )
+    except Exception:
+        # Runs as a background task: log here, the page gets ERROR.
+        marker = CALL_ERROR
+        logger.exception("Scripted call failed")
     finally:
         # Runs on cancellation too, so End Call still closes cleanly.
-        await broadcast(system_event(CALL_ENDED))
+        await broadcast(system_event(marker))

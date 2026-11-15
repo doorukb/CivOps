@@ -87,4 +87,5 @@ curl -X POST "http://127.0.0.1:8000/scenarios/hidden_knife/play?speed=2"
 - **"Caller asked for CRESS" is display-only.** Claude extracts `caller_requests_cress` and the Live Call view shows it, but no rule uses it.
 - **Evidence quotes prove existence, not meaning.** The backend keeps a safety answer only if Claude's quote appears in the transcript, ignoring speaker labels, case and spacing. That proves the words were said, not that they support the answer. A real quote can still back a wrong one, for example a negation read the wrong way. Check the quote before you trust the field.
 - **The tripwire is a keyword list.** It ignores negation, so "he does not have a gun" still raises a flag. A flag only asks for human review.
+- **Localhost only, no login.** The backend refuses requests from browser pages that aren't on `localhost` / `127.0.0.1`, so another website can't start the microphone or read the transcript. Any program on the same machine can still call it, so never bind it to `0.0.0.0` or expose it with ngrok as it is.
 - **Nothing is stored.** Calls, decisions and edited fields live in memory and are lost when the backend stops.

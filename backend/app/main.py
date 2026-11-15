@@ -2,23 +2,29 @@ import asyncio
 import logging
 import threading
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
+from starlette.responses import PlainTextResponse
+from starlette.websockets import WebSocketClose
 
 from app.api.audit import router as audit_router
 from app.api.simulation import router as simulation_router
 from app.models import Decision, EvaluationRequest, Incident, TranscriptEvent
 from app.services.extractor import extract_incident
 from app.services.rule_engine import evaluate_incident
-from app.services.scenarios import SCENARIOS
+from app.services.call_session import (
+    CALL_ENDED,
+    CALL_ERROR,
+    CALL_STARTED,
+    SCENARIOS,
+    play_scenario as run_scenario,
+    system_event,
+)
 from app.services.tripwires import scan_transcript
 
 logger = logging.getLogger(__name__)
-
-CALL_STARTED = "__call_started__"
-CALL_ENDED = "__call_ended__"
-CALL_ERROR = "__call_error__"
 
 # The server's event loop; worker threads post to it via run_coroutine_threadsafe.
 event_loop: asyncio.AbstractEventLoop | None = None
@@ -32,7 +38,38 @@ async def lifespan(app: FastAPI):
     event_loop = None
 
 
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+class LocalOriginOnly:
+    """Refuse browser requests sent from any page that isn't on localhost.
+
+    Without this, any website the operator visits could POST /calls/start
+    (no body, so CORS never blocks it) to turn on this machine's microphone,
+    and open /ws/transcript (WebSockets ignore CORS) to read the call. It
+    also stops DNS rebinding. Requests without an Origin header (curl, the
+    mic script, tests) are not from a browser page and pass through.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            origin = dict(scope["headers"]).get(b"origin")
+            if origin is not None and (
+                urlsplit(origin.decode("latin-1")).hostname not in LOCAL_HOSTS
+            ):
+                if scope["type"] == "websocket":
+                    reject = WebSocketClose(code=1008)
+                else:
+                    reject = PlainTextResponse("Forbidden origin", 403)
+                return await reject(scope, receive, send)
+        await self.app(scope, receive, send)
+
+
 app = FastAPI(title="CivOps API", lifespan=lifespan)
+app.add_middleware(LocalOriginOnly)
 app.include_router(audit_router)
 app.include_router(simulation_router)
 
@@ -119,10 +156,6 @@ async def broadcast_event(event: TranscriptEvent) -> int:
 @app.post("/transcript/event")
 async def publish_transcript_event(event: TranscriptEvent):
     return {"delivered_to": await broadcast_event(event)}
-
-
-def system_event(text: str, t: float = 0.0) -> TranscriptEvent:
-    return TranscriptEvent(speaker="system", text=text, is_final=True, t=t)
 
 
 def post_system_event(text: str):
@@ -214,31 +247,9 @@ def end_microphone_call():
 @app.get("/scenarios")
 def list_scenarios():
     return [
-        {"id": scenario_id, "title": title, "segments": len(segments)}
-        for scenario_id, (title, segments) in SCENARIOS.items()
+        {"id": s.id, "title": s.title, "segments": len(s.lines)}
+        for s in SCENARIOS.values()
     ]
-
-
-async def replay_script(segments, speed: float):
-    marker = CALL_ENDED
-    elapsed = 0.0
-
-    try:
-        await broadcast_event(system_event(CALL_STARTED))
-
-        for delay, text in segments:
-            await asyncio.sleep(delay / speed)
-            elapsed += delay / speed
-            await broadcast_event(TranscriptEvent(
-                speaker="unknown", text=text, is_final=True, t=elapsed
-            ))
-    except asyncio.CancelledError:
-        pass  # End Call pressed; still send ENDED below
-    except Exception:
-        marker = CALL_ERROR
-        logger.exception("Scripted call failed")
-    finally:
-        await broadcast_event(system_event(marker))
 
 
 @app.post("/scenarios/{scenario_id}/play")
@@ -256,7 +267,7 @@ async def play_scenario(
             return {"status": "already_running"}
 
         script_task = asyncio.create_task(
-            replay_script(SCENARIOS[scenario_id][1], speed)
+            run_scenario(scenario_id, broadcast_event, speed)
         )
 
     return {"status": "started"}

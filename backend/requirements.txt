@@ -1,4 +1,4 @@
-# Versions verified together on 2026-11-15 (Python 3.13, 119 tests passing).
+# Versions verified together on 2026-11-15 (Python 3.13, 142 tests passing).
 
 # Web server (uvicorn[standard] brings in websockets for /ws/transcript)
 fastapi==0.163.1

@@ -63,6 +63,29 @@ def test_missed_cress_referral():
     assert results[0]["could_have_gone_to_cress"] is True
     assert results[0]["sent_to_cress_appropriately"] is False
 
+
+def test_audit_replay_runs_tripwire_on_transcript():
+    # All-clear fields, but the transcript mentions a knife: the replay must
+    # flag it like Live Call does, not call it a missed CRESS referral.
+    record = AuditRecord(
+        call_id="CALL-003",
+        incident=Incident(
+            call_type="wellbeing_check",
+            weapon_present=False,
+            violence=False,
+            injury=False,
+            immediate_danger=False,
+            timestamp="2026-11-16T14:30:00-05:00"
+        ),
+        actual_destination=Destination.POLICE,
+        transcript="He said he has a knife."
+    )
+
+    result = audit_calls([record])[0]
+
+    assert result["rule_id"] == "TRANSCRIPT-TRIPWIRE"
+    assert result["could_have_gone_to_cress"] is False
+
 from app.services.audit import summarize_audit
 
 

@@ -80,7 +80,9 @@ These come from the handoff's §10 and §16, and the code confirms them:
 
 **Update (defect 5):** `simulate_incidents` accepts `horizon_start` / `horizon_end` (local dates, end exclusive), and `run_comparison` always passes them, so utilization uses the whole horizon. Without them it still falls back to the first-to-last-call span, which is what `/simulation/run` does today. Busy time past the end of a shift is still not counted (unchanged).
 
-**Update (defect 6):** still open. `AuditRecord` now has an optional `transcript` field, but `audit_calls` doesn't pass it to the rule engine, so replay still skips the tripwire.
+**Update (defect 6):** fixed. `AuditRecord` has an optional `transcript` field, and `audit_calls` passes it to the rule engine, so a replayed call with a tripwire word goes to `TRANSCRIPT-TRIPWIRE`. The synthetic month has no transcripts, so `/audit/demo` is unchanged.
+
+**Update (defect 2, browser side):** the backend refuses any HTTP or WebSocket request whose `Origin` isn't localhost (`LocalOriginOnly` in `main.py`). Before this, any website the operator visited could `POST /calls/start` to turn on the microphone and read `/ws/transcript`. Local processes (curl, the mic script) still need no credentials, so keep the backend bound to `127.0.0.1`.
 
 **Update (defect 7):** a different approach. The hidden hard-coded time is gone. The operator picks a visible simulated call time (Monday 2 PM, Monday 7:30 PM or Saturday 11 AM) that is sent with each evaluation. The call's real start time is still not used.
 

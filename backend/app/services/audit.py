@@ -7,7 +7,9 @@ def audit_calls(records: list[AuditRecord]) -> list[dict]:
     results = []
 
     for record in records:
-        decision = evaluate_incident(record.incident)
+        decision = evaluate_incident(
+            record.incident, transcript=record.transcript
+        )
 
         results.append(classify_audit_result({
             "call_id": record.call_id,
