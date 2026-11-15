@@ -37,7 +37,7 @@ def publish_event(event: TranscriptEvent):
     except Exception as error:
         print("Failed to publish transcript:", error)
 
-def main(stop_event=None):
+def main(stop_event=None, on_ready=None):
     if stop_event is None:
         stop_event = threading.Event()
     client = DeepgramClient()
@@ -137,7 +137,9 @@ def main(stop_event=None):
             blocksize=CHUNK_SIZE,
             callback=microphone_callback,
         ):
-            start = time.monotonic()
+            if on_ready:
+                on_ready()  # microphone is open and audio is flowing
+
 
             try:
                 while not stop_event.is_set():

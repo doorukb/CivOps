@@ -46,7 +46,8 @@ export default function LiveCall() {
 
     socket.onmessage = (message) => {
         const event: TranscriptEvent = JSON.parse(message.data)
-        if (!callActiveRef.current) {
+        // Lifecycle markers (__call_started__ etc.) are not speech
+        if (event.speaker === 'system' || !callActiveRef.current) {
             return
         }
         if (event.is_final) {
