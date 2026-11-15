@@ -469,8 +469,187 @@ th {
   font-size: 12px;
   letter-spacing: 1px;
 }
+
+/* Between "Start" and the first words: amber, pulsing, next to live/idle. */
+.call-connecting {
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  animation: connecting-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes connecting-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .call-connecting {
+    animation: none;
+  }
+}
+
+/* Tripwire banner: solid red with light text so it cannot be missed. */
+.tripwire-banner {
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  background: #b91c1c;
+  border: 3px solid #fecaca;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tripwire-banner strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* .panel p would dim the text, so restate the color here. */
+.panel .tripwire-banner p {
+  margin: 4px 0 0;
+  color: inherit;
+}
+
+/* Scripted-call buttons, next to the Start/End row. */
+.scenario-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.scenario-row .scenario-label {
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.scenario-button {
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scenario-button:hover:not(:disabled) {
+  background: #172f46;
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.scenario-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Screening checklist. The marker is text, so state is not color alone. */
+.checklist {
+  list-style: none;
+  margin: 18px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #0b1120;
+  border: 1px solid #263244;
+  border-left-width: 4px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.checklist-item::before {
+  flex: none;
+  width: 1.2em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.checklist-item.open {
+  color: #94a3b8;
+  border-left-color: #475569;
+}
+
+.checklist-item.open::before {
+  content: "\25CB"; /* ○ */
+}
+
+.checklist-item.answered {
+  color: #6ee7b7;
+  border-left-color: #34d399;
+}
+
+.checklist-item.answered::before {
+  content: "\2713"; /* ✓ */
+}
+
+.checklist-item.flagged {
+  color: #fca5a5;
+  border-left-color: #f87171;
+  background: #2a1215;
+}
+
+.checklist-item.flagged::before {
+  content: "\2691"; /* ⚑ */
+}
+
+/* Decision card variant for human review: amber instead of blue. */
+.decision-card.human-review {
+  background: #33260a;
+  border-color: #f59e0b;
+}
+
+.decision-card.human-review span {
+  color: #fcd34d;
+}
+
+.decision-card.human-review h3 {
+  color: #fbbf24;
+}
+
 .assumptions {
+  margin: 8px 0 0;
+  padding-left: 20px;
   color: #94a3b8;
   font-size: 13px;
   line-height: 1.8;
+}
+
+/* Stress-test button: amber outline so it reads as "push the model". */
+.stress-test-button {
+  background: transparent;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 12px 20px;
+  color: #fbbf24;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stress-test-button:hover:not(:disabled) {
+  background: #33260a;
+  border-color: #fbbf24;
+}
+
+.stress-test-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
