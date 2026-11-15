@@ -65,6 +65,7 @@ class SimulationConfig(BaseModel):
         default=60, ge=5, le=240
     )
     include_weekends: bool = False
+    include_noise_complaints: bool = False
 
     @model_validator(mode="after")
     def validate_schedule(self):
