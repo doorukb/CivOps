@@ -30,7 +30,7 @@ This file compares the original scope (the HackUMass project plan) with what the
 | Hard tripwires on the raw transcript that the model can't clear | ✅ | `tripwires.py`, checked before the structured fields. The word list is small (`attacking` is missing) and it doesn't understand negation. |
 | Escalation goes to a human, never to police on its own | ✅ | Every safety path returns `human_review` |
 | Replay audit sorted into the town's four review groups | ✅ | `/audit/demo` and `/audit/run`, plus the Monthly Audit view |
-| Synthetic month matching LEAP's volumes and timing | ⚠️ | 250 calls with uniformly random types, times and past destinations. Labeled `calibrated_to_leap=false`. |
+| Synthetic month matching LEAP's volumes and timing | ⚠️ | 250 calls. Times follow illustrative hour/day weights (`arrival_patterns.py`, not LEAP data). "Actual" dispatch uses its own named assumptions in `synthetic.py` (CRESS only weekdays 8–16, 25% referral, 3% misroute, 8% true and 5% unknown safety answers). Labeled `calibrated_to_leap=false`. |
 | What-if simulator calibrated to LEAP | ⚠️ | SimPy simulation with on-duty and busy-team checks. It runs on 9 hard-coded calls, makes a single run (no ranges), has no LEAP calibration and doesn't reproduce the coverage table. |
 
 ### Should ship
