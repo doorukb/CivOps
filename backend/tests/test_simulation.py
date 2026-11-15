@@ -251,3 +251,40 @@ def test_run_comparison_one_team_long_calls_misses_busy():
 
     assert result["baseline"]["missed_busy"]["mean"] > 3
     assert result["difference"]["missed_busy"]["mean"] == 0
+
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+compare_client = TestClient(app)
+
+
+def test_compare_endpoint_defaults_baseline_and_returns_summary():
+    response = compare_client.post("/simulation/compare", json={
+        "scenario": {"start_hour": 8, "end_hour": 20, "teams": 3},
+        "replications": 5,
+    })
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["replications"] == 5
+    assert body["horizon_weeks"] == 4
+    assert set(body) >= {"baseline", "scenario", "difference", "assumptions"}
+    # Longer hours should not reduce calls handled
+    assert body["difference"]["calls_per_week"]["mean"] > 0
+
+
+def test_compare_endpoint_validates_input():
+    ok = {"scenario": {}}
+    for bad in (
+        {"scenario": {"start_hour": 20, "end_hour": 6}},  # overnight
+        {**ok, "replications": 0}, {**ok, "replications": 201},
+        {**ok, "calls_per_week": 0}, {**ok, "calls_per_week": 501},
+        {**ok, "horizon_weeks": 0}, {**ok, "horizon_weeks": 14},
+        {**ok, "duration_cv": -0.1}, {**ok, "duration_cv": 1.6},
+    ):
+        assert compare_client.post(
+            "/simulation/compare", json=bad
+        ).status_code == 422, bad
+    assert compare_client.post("/simulation/compare", json={}).status_code == 422
