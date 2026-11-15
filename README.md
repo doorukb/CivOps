@@ -84,6 +84,7 @@ curl -X POST "http://127.0.0.1:8000/scenarios/hidden_knife/play?speed=2"
 ## Limits
 
 - **The simulator shows a ceiling.** It sends every eligible on-duty call to CRESS, so its numbers show the most CRESS could take, not what dispatch sends today. The arrivals are synthetic, with weights fitted to the brief's coverage table rather than copied from LEAP's data.
+- **What-If schedules can't cross midnight.** LEAP's recommended 9 AM to 2 AM schedule isn't selectable. The closest option, 9 AM to midnight every day, covers about 76% of calls (LEAP's full schedule would cover about 87%).
 - **"Caller asked for CRESS" is display-only.** Claude extracts `caller_requests_cress` and the Live Call view shows it, but no rule uses it.
 - **Evidence quotes prove existence, not meaning.** The backend keeps a safety answer only if Claude's quote appears in the transcript, ignoring speaker labels, case and spacing. That proves the words were said, not that they support the answer. A real quote can still back a wrong one, for example a negation read the wrong way. Check the quote before you trust the field.
 - **The tripwire is a keyword list.** It ignores negation, so "he does not have a gun" still raises a flag. A flag only asks for human review.

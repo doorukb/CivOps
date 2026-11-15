@@ -61,8 +61,7 @@ export default function MonthlyAudit() {
       {data && (
         <>
           <p className="disclaimer">
-            Synthetic demonstration data. Not calibrated to
-            historical LEAP call distributions.{' '}
+            Synthetic demonstration data.{' '}
             {data.dataset.arrival_pattern}{' '}
             The &ldquo;actual dispatch&rdquo; outcomes shown here are
             invented for the demonstration, not real dispatch records.

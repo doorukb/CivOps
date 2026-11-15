@@ -38,11 +38,26 @@ def test_no_false_substring_match():
 
 
 PHRASINGS = {
-    "weapon": ["two guns", "kitchen knives", "he stabbed him", "shots fired"],
-    "violence": ["he is attacking her", "being strangled", "punching him"],
-    "injury": ["there is blood", "she is unresponsive", "he collapsed"],
+    "weapon": [
+        "two guns", "kitchen knives", "he stabbed him", "shots fired",
+        "I heard shots", "he got shot", "someone was shot", "he shot at the car",
+        "she shot him",
+    ],
+    "violence": [
+        "he is attacking her", "being strangled", "punching him",
+        "he punched me", "he punches the wall", "they beat up my son",
+        "he was beaten up", "they beat him up",
+    ],
+    "injury": [
+        "there is blood", "she is unresponsive", "he collapsed",
+        "his arm bleeds", "she could bleed out",
+    ],
     "medical": ["he can't breathe", "can’t breathe", "chest pain", "overdosed"],
-    "self_harm": ["he is suicidal", "wants to die", "end my life"],
+    "self_harm": [
+        "he is suicidal", "wants to die", "end my life",
+        "he said he will kill himself", "she keeps hurting herself",
+        "I want to hurt myself", "he wants to take his own life",
+    ],
     "threat": ["I will kill him", "he is gonna hurt me", "threatening to shoot"],
 }
 
@@ -53,6 +68,12 @@ PHRASINGS = {
 )
 def test_phrasing_flags_category(category, text):
     assert category in scan_transcript(text)
+
+
+def test_flu_shot_does_not_flag():
+    # Bare "shot" is not on the list. "shot at" is, so "flu shot at the
+    # pharmacy" still flags: over-sensitive on purpose, a flag only asks for review.
+    assert scan_transcript("She just got her flu shot yesterday.") == {}
 
 
 def test_negation_is_not_understood():

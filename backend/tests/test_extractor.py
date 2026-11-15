@@ -79,6 +79,15 @@ def test_quote_with_speaker_label_dropped_is_accepted(monkeypatch):
     assert incident.injury is False
 
 
+def test_quote_joining_question_and_labelled_answer_is_accepted(monkeypatch):
+    # One line in the quote, two lines in the transcript, with "Caller:" kept.
+    incident, _ = fake_extract(
+        monkeypatch,
+        injury={"value": False, "evidence": "Is anyone hurt? Caller: No, nobody is hurt."},
+    )
+    assert incident.injury is False
+
+
 @pytest.mark.parametrize(
     "quote", ["NOBODY IS HURT", "no, nobody is hurt", "he's just yelling"]
 )
