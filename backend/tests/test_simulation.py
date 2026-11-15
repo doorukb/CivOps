@@ -170,3 +170,84 @@ def test_equal_start_end_hours():
             start_hour=8,
             end_hour=8
         )
+
+from datetime import date
+
+from app.services.simulator import run_comparison
+
+
+def _call(call_type, timestamp):
+    return Incident(
+        call_type=call_type,
+        weapon_present=False,
+        violence=False,
+        injury=False,
+        immediate_danger=False,
+        timestamp=timestamp
+    )
+
+
+def test_noise_complaints_only_eligible_when_requested():
+    off = build_scenario_rulebook(SimulationConfig())
+    on = build_scenario_rulebook(SimulationConfig(include_noise_complaints=True))
+
+    assert "noise_complaint" not in off["eligible_call_types"]
+    assert on["eligible_call_types"][-1] == "noise_complaint"
+    assert "noise_complaint" not in load_rulebook()["eligible_call_types"]
+
+
+def test_horizon_fixes_utilization_denominator():
+    incidents = [_call("wellbeing_check", "2026-11-16T10:00:00-05:00")]
+    config = SimulationConfig(teams=1, average_duration_minutes=60)
+
+    # One call and one day: 60 busy minutes of 480 scheduled
+    assert simulate_incidents(incidents, config).utilization == pytest.approx(60 / 480)
+
+    # Mon 16th to Mon 23rd, end exclusive: 5 scheduled days
+    result = simulate_incidents(
+        incidents, config, date(2026, 11, 16), date(2026, 11, 23)
+    )
+    assert result.utilization == pytest.approx(60 / (5 * 480))
+
+
+def test_multipliers_sort_with_their_calls():
+    # Listed out of order: the 10:00 call is 3x as long, so it blocks 10:30.
+    incidents = [
+        _call("wellbeing_check", "2026-11-16T10:30:00-05:00"),
+        _call("wellbeing_check", "2026-11-16T10:00:00-05:00"),
+    ]
+    config = SimulationConfig(teams=1, average_duration_minutes=60)
+
+    long_first = simulate_incidents(incidents, config, duration_multipliers=[0.1, 3.0])
+    short_first = simulate_incidents(incidents, config, duration_multipliers=[3.0, 0.1])
+
+    assert (long_first.handled_calls, long_first.missed_busy) == (1, 1)
+    assert (short_first.handled_calls, short_first.missed_busy) == (2, 0)
+
+    with pytest.raises(ValueError):
+        simulate_incidents(incidents, config, duration_multipliers=[1.0])
+
+
+def test_run_comparison():
+    baseline = SimulationConfig()
+    scenario = SimulationConfig(start_hour=8, end_hour=20)
+
+    result = run_comparison(baseline, scenario, replications=20)
+    assert result == run_comparison(baseline, scenario, replications=20)
+
+    # Roughly 47/week * 75% eligible * 22% / 36% coverage, per the assumptions
+    assert result["baseline"]["calls_per_week"]["mean"] == pytest.approx(7.7, abs=1.5)
+    assert result["scenario"]["calls_per_week"]["mean"] == pytest.approx(12.7, abs=2)
+
+    stats = result["difference"]["calls_per_week"]
+    assert stats["p10"] <= stats["mean"] <= stats["p90"]
+    assert stats["p10"] > 0  # paired on the same calls: longer hours never lose any
+    assert len(result["assumptions"]) >= 5
+
+
+def test_run_comparison_one_team_long_calls_misses_busy():
+    tight = SimulationConfig(teams=1, average_duration_minutes=180)
+    result = run_comparison(tight, tight, replications=20)
+
+    assert result["baseline"]["missed_busy"]["mean"] > 3
+    assert result["difference"]["missed_busy"]["mean"] == 0

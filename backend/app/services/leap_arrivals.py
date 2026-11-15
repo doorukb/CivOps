@@ -34,10 +34,6 @@ CALL_TYPE_WEIGHTS = (
 
 TIMEZONE = ZoneInfo("America/New_York")
 
-# lognormal with mean 1 and coefficient of variation 0.5
-_SIGMA = math.sqrt(math.log(1 + 0.5**2))
-_MU = -_SIGMA**2 / 2
-
 
 def coverage(weekdays, start_hour: int, end_hour: int) -> float:
     """Share of calls arriving on `weekdays` (0=Mon) during [start_hour, end_hour)."""
@@ -46,9 +42,11 @@ def coverage(weekdays, start_hour: int, end_hour: int) -> float:
     )
 
 
-def duration_multiplier(rng: random.Random) -> float:
-    """Multiplier on average call duration; clipped, so the mean lands just under 1."""
-    return min(4.0, max(0.25, rng.lognormvariate(_MU, _SIGMA)))
+def duration_multiplier(rng: random.Random, cv: float = 0.5) -> float:
+    """Lognormal multiplier on average call duration (mean 1, coefficient of
+    variation `cv`), clipped to 0.25-4, so the mean lands just under 1."""
+    sigma = math.sqrt(math.log(1 + cv**2))
+    return min(4.0, max(0.25, rng.lognormvariate(-sigma**2 / 2, sigma)))
 
 
 def _poisson(rng: random.Random, lam: float) -> int:

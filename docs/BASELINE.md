@@ -31,7 +31,7 @@ This file compares the original scope (the HackUMass project plan) with what the
 | Escalation goes to a human, never to police on its own | ✅ | Every safety path returns `human_review` |
 | Replay audit sorted into the town's four review groups | ✅ | `/audit/demo` and `/audit/run`, plus the Monthly Audit view |
 | Synthetic month matching LEAP's volumes and timing | ⚠️ | 250 calls. Times follow illustrative the shared hour/day weights in `leap_arrivals.py` (fitted to the brief's coverage table, not copied from LEAP). "Actual" dispatch uses its own named assumptions in `synthetic.py` (CRESS only weekdays 8–16, 25% referral, 3% misroute, 8% true and 5% unknown safety answers). Labeled `calibrated_to_leap=false`. |
-| What-if simulator calibrated to LEAP | ⚠️ | SimPy simulation with on-duty and busy-team checks. It runs on 9 hard-coded calls, makes a single run (no ranges), has no LEAP calibration and doesn't reproduce the coverage table. |
+| What-if simulator calibrated to LEAP | ⚠️ | SimPy simulation with on-duty and busy-team checks. `run_comparison` (backend only, not yet exposed through the API or UI) runs 50 seeded replications on arrivals fitted to the coverage table, with mean/p10/p90 and a fixed horizon. The weights are fitted to coverage totals, not copied from LEAP's tables. The API endpoint and UI still run a single pass on supplied calls. |
 
 ### Should ship
 
@@ -72,6 +72,8 @@ These come from the handoff's §10 and §16, and the code confirms them:
 7. **Fixed timestamp.** Live Call uses the hard-coded `2026-11-16T10:00-05:00` instead of the call's real time.
 
 **Update:** defects 1 and 2 (start/stop races, last words lost) are addressed by `__call_started__` / `__call_ended__` / `__call_error__` markers, and the UI now waits for the end marker. Scripted calls (`/scenarios`) and `/calls/screen` exist. Not yet tested against a real microphone. Call IDs are still not implemented, so the late-event-from-a-previous-call case is only covered by the one-session-at-a-time rule.
+
+**Update (defect 5):** `simulate_incidents` accepts `horizon_start` / `horizon_end` (local dates, end exclusive), and `run_comparison` always passes them, so utilization uses the whole horizon. Without them it still falls back to the first-to-last-call span, which is what `/simulation/run` does today. Busy time past the end of a shift is still not counted (unchanged).
 
 ## Setup fixes made for this baseline
 
