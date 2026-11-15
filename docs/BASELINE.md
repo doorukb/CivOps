@@ -1,6 +1,6 @@
 # CivOps baseline: where we are against the scope
 
-**Baseline date:** November 15, 2026. **Branch:** `new_features`. It starts from commit `0cb8e26` (live Deepgram transcription and call controls), plus the setup fixes listed at the end. **Last updated:** November 15, 2026, at commit `2066c94`.
+**Baseline date:** November 15, 2026. **Branch:** `new_features`. It starts from commit `0cb8e26` (live Deepgram transcription and call controls), plus the setup fixes listed at the end. **Last updated:** November 15, 2026, at commit `73d2998` (still on `new_features`, not yet merged to `main`).
 
 This file compares the original scope (the HackUMass project plan) with what the code does now. The repository was checked directly. Claims from the build conversation were rerun where possible.
 
@@ -8,11 +8,12 @@ This file compares the original scope (the HackUMass project plan) with what the
 
 | Check | Result |
 |-|-|
-| `python -m pytest tests/ -q` (Python 3.13, fresh venv from `requirements.txt`) | 134 passed, no paid API calls |
+| `python -m pytest tests/ -q` (Python 3.13, fresh venv from `requirements.txt`) | 161 passed, no paid API calls |
 | `npm install && npm run build` | Builds without errors |
 | `npm run lint` | Clean |
 | Live paths (Deepgram mic → browser → Claude → rules) | Reported working by the developer. Not rerun here because they need API keys and a microphone. |
-| Evaluations in `backend/eval/` | **Not run.** They make paid Claude calls. This file quotes no evaluation results. |
+| Scripted calls through the tripwire and rules, with ideal extraction | `routine_wellbeing` gives CRESS-001 at Monday 2 PM and CRESS-002 at Monday 7:30 PM and Saturday 11 AM. `hidden_knife` gives TRANSCRIPT-TRIPWIRE at all three times. `incomplete_screening` gives SCREEN-INCOMPLETE. Real Claude extraction of these scripts has not been rehearsed with a key yet. |
+| Evaluations in `backend/eval/` | **Not run.** They make paid Claude calls and no API key was available when this file was updated. The free `--check` runs pass (27 cases, 11 pairs, none trips the tripwire). This file quotes no evaluation results. |
 
 ## Scope vs. achieved
 
@@ -28,11 +29,11 @@ This file compares the original scope (the HackUMass project plan) with what the
 | Rule conditions for line type (911 or non-emergency) and caller asked for CRESS / no police | ❌ | Rules only use `eligible_call_type` and `on_duty`. `caller_requests_cress` is extracted and shown in Live Call as display-only. No rule reads it. |
 | Console: extract facts, cite a rule, show the tripwire | ✅ | Live Call view: Claude extraction with evidence quotes, editable fields, rule ID shown on the decision card |
 | Console: "play scripted call" mode (backup if the mic or Wi-Fi fails) | ✅ | `GET /scenarios`, `POST /scenarios/{id}/play` and a button per script in Live Call. Three scripts: routine wellbeing check, hidden knife (tripwire) and incomplete screening (`SCREEN-INCOMPLETE`). They replay through the same WebSocket path and need neither the mic nor Deepgram. |
-| Hard tripwires on the raw transcript that the model can't clear | ✅ | `tripwires.py`, checked before the structured fields and rescreened live as the transcript arrives. The list now covers `attacking`, `stabbed`, `shots fired`, `shooting` and `threatening to …`. It is still lexical and doesn't understand negation. |
+| Hard tripwires on the raw transcript that the model can't clear | ✅ | `tripwires.py`, checked before the structured fields and rescreened live as the transcript arrives. The list covers weapons (including `shots`, `was shot`, `shot him`), violence (`attacking`, `punched`, `beat up`), injury (`bleeding`, `bleed out`), medical, self-harm (`kill himself`, `hurt herself`, `take his own life`) and threats. Bare `shot` and `pills` stay out on purpose: they flag ordinary calls. It is still lexical and doesn't understand negation, and `shot at` also flags "flu shot at the pharmacy". |
 | Escalation goes to a human, never to police on its own | ✅ | Every safety path returns `human_review` |
 | Replay audit sorted into the town's four review groups | ✅ | `/audit/demo` and `/audit/run`, plus the Monthly Audit view |
 | Synthetic month matching LEAP's volumes and timing | ⚠️ | 250 calls. Times follow the illustrative hour/day weights shared in `leap_arrivals.py` (fitted to the brief's coverage table, not copied from LEAP). "Actual" dispatch uses its own named assumptions in `synthetic.py` (CRESS only weekdays 8–16, 25% referral, 3% misroute, 8% true and 5% unknown safety answers). Labeled `calibrated_to_leap=false`. |
-| What-if simulator calibrated to LEAP | ⚠️ | SimPy simulation with on-duty and busy-team checks. `POST /simulation/compare` and the What-If view run `run_comparison`: 50 seeded replications on arrivals fitted to the coverage table, with mean and p10–p90 over a fixed horizon. Still missing: weights taken from LEAP's own tables and a Recharts chart. Every eligible on-duty call goes to CRESS, so results are a ceiling. `/simulation/run` still runs a single pass on supplied calls. |
+| What-if simulator calibrated to LEAP | ⚠️ | SimPy simulation with on-duty and busy-team checks. `POST /simulation/compare` and the What-If view run `run_comparison`: 50 seeded replications on arrivals fitted to the coverage table, with mean and p10–p90 over a fixed horizon. Still missing: weights taken from LEAP's own tables and a Recharts chart. Every eligible on-duty call goes to CRESS, so results are a ceiling. `/simulation/run` still runs a single pass on supplied calls. Schedules can't cross midnight, so LEAP's 9 AM to 2 AM (about 87%) isn't selectable; 9 AM to midnight every day covers about 76%. |
 
 ### Should ship
 
@@ -40,8 +41,8 @@ This file compares the original scope (the HackUMass project plan) with what the
 |-|-|-|
 | Live phone call into the console | ⚠️ | The laptop microphone with Deepgram live STT stands in for it. No Twilio. Single speaker (`unknown`). |
 | Extraction every few seconds during the call | ⚠️ | Extraction runs once, automatically, when the call ends, and the operator can click "Extract with Claude" at any time. The tripwire (not Claude) rescreens the live transcript as it changes. |
-| Bias audit on matched pairs of Suspicious calls | ❌ | `backend/eval/bias_pairs.py` is designed (11 pairs × 3 runs, with a noise floor), and `tests/test_eval_cases.py` checks the case data. It has not been run, so there are no results. |
-| Missed-escalation evaluation (about 40 disguised emergencies, with a confidence interval) | ❌ | `backend/eval/missed_escalations.py` is designed (27 cases, Wilson 95% interval), and `tests/test_eval_cases.py` checks that no case uses a tripwire word. It has not been run, so there are no results. |
+| Bias audit on matched pairs of Suspicious calls | ❌ | `backend/eval/bias_pairs.py` is designed (11 pairs × 3 runs, with a noise floor), and `tests/test_eval_cases.py` checks the case data. It has not been run (66 Haiku calls, needs `ANTHROPIC_API_KEY`), so there are no results. |
+| Missed-escalation evaluation (about 40 disguised emergencies, with a confidence interval) | ❌ | `backend/eval/missed_escalations.py` is designed (27 cases, Wilson 95% interval), and `tests/test_eval_cases.py` checks that no case uses a tripwire word. It has not been run (27 Haiku calls, needs `ANTHROPIC_API_KEY`), so there are no results. |
 
 ### Stretch
 
@@ -54,7 +55,7 @@ This file compares the original scope (the HackUMass project plan) with what the
 
 | Item | Status | Notes |
 |-|-|-|
-| SQLite log of calls, decisions and overrides (with reasons) | ❌ | Everything is in memory. Overrides change the fields but aren't logged. |
+| SQLite log of calls, decisions and overrides (with reasons) | ❌ | Nothing is saved. Live Call keeps a confirm/override list with reasons, labelled "this page only, not saved"; it is lost on reload. |
 | Recharts charts | ❌ | The Audit and What-If views use metric cards and tables |
 | Location field in the extraction form | ❌ | |
 | Twilio, ngrok, recorded-call notice | ❌ | `twilio` was removed from `requirements.txt` until this is started. |
@@ -76,7 +77,7 @@ These come from the handoff's §10 and §16, and the code confirms them:
 
 **Update (defect 3):** fixed. `LiveCall.tsx` bumps a version counter on every transcript or field edit and discards an extraction or evaluation response that comes back after one, with a notice to run it again.
 
-**Update (defect 4):** still open. The extractor prompt asks for `false` only on an explicit denial, and the backend checks that the evidence quote appears in the transcript (ignoring speaker labels, case and spacing). The quote check proves the words exist, not that they support the value.
+**Update (defect 4):** reduced, still open. The extractor prompt asks for `false` only on an explicit denial and now names hedged denials ("not that I know of", "I don't think so") as `null`, and says a dispatcher's question is never evidence. The backend checks that the evidence quote appears in the transcript, ignoring case, spacing and speaker labels (now also mid-line, so a quote that joins a question and a labelled answer is no longer wrongly dropped). The quote check proves the words exist, not that they support the value: a model could still quote the clean start of a hedged answer. The routine scripted call now uses plain denials.
 
 **Update (defect 5):** `simulate_incidents` accepts `horizon_start` / `horizon_end` (local dates, end exclusive), and `run_comparison` always passes them, so utilization uses the whole horizon. Without them it still falls back to the first-to-last-call span, which is what `/simulation/run` does today. Busy time past the end of a shift is still not counted (unchanged).
 
@@ -109,7 +110,7 @@ The order puts demo reliability first, then the must-ship gaps, then the should-
 | 6 | **Grow the tripwire list.** Add `attacking`, `stabbed`, `shot`, `threatening`, and so on, with tests. | Closes a safety gap in the demo script | S | ✅ |
 | 7 | **Simulator on a seeded 30-day month.** Shape arrivals by LEAP's hour-of-day and day-of-week patterns, use a fixed horizon, run N Monte Carlo replications with p10/p50/p90, and add a Recharts comparison chart. | Must-ship "calibrated" claim | M | ⚠️ replications and bands done, no chart, weights not from LEAP |
 | 8 | **Shape the audit generator by LEAP's timing patterns.** | Must-ship | S | ⚠️ shaped by weights fitted to the coverage table |
-| 9 | **Evaluation scripts.** A hand-written disguised-emergency set with a Wilson confidence interval, and matched Suspicious pairs for the bias audit. Cache the outputs so tests stay offline. | Should-ship | M | ⚠️ scripts written, not run |
+| 9 | **Evaluation scripts.** A hand-written disguised-emergency set with a Wilson confidence interval, and matched Suspicious pairs for the bias audit. Cache the outputs so tests stay offline. | Should-ship | M | ⚠️ scripts written, not run (needs an API key) |
 | 10 | **Twilio Media Streams.** Only if steps 1–4 are done. | Should-ship, highest risk | L | ❌ |
 
 SQLite override logging, the location field and the stretch items stay deferred until the steps above are done.
