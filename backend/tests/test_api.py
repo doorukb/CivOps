@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from app.main import app
+from app.models import Incident
 
 client = TestClient(app)
 
@@ -134,3 +135,36 @@ def test_simulation_endpoint():
     assert result["eligible_calls"] == 2
     assert result["handled_calls"] == 1
     assert result["missed_busy"] == 1
+
+def test_extract_endpoint(monkeypatch):
+    def fake_extract(transcript):
+        return Incident(
+            call_type="disturbance",
+            weapon_present=False,
+            violence=None,
+            injury=False,
+            immediate_danger=None,
+            evidence={
+                "weapon_present": "there are no weapons",
+                "injury": "nobody is injured"
+            }
+        )
+
+    monkeypatch.setattr(
+        "app.main.extract_incident",
+        fake_extract
+    )
+
+    response = client.post(
+        "/calls/extract",
+        json={"transcript": "Fictional test transcript"}
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["call_type"] == "disturbance"
+    assert data["weapon_present"] is False
+    assert data["violence"] is None
+    assert data["evidence"]["injury"] == "nobody is injured"
