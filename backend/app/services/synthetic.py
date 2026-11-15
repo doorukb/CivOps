@@ -1,7 +1,9 @@
+import calendar
 import random
+from datetime import datetime
 
 from app.models import AuditRecord, Destination, Incident
-from app.services.arrival_patterns import random_timestamp
+from app.services.leap_arrivals import DAY_WEIGHTS, HOUR_WEIGHTS, TIMEZONE
 
 CALL_TYPES = [
     "wellbeing_check",
@@ -39,6 +41,20 @@ TRUE_SAFETY_RATE = 0.08
 UNKNOWN_SAFETY_RATE = 0.05
 
 SAFETY_FIELDS = ("weapon_present", "violence", "injury", "immediate_danger")
+
+
+def random_timestamp(rng: random.Random, year: int, month: int) -> datetime:
+    """Draw a local timestamp in the month from the shared hour/day weights."""
+    days = range(1, calendar.monthrange(year, month)[1] + 1)
+    day = rng.choices(
+        days,
+        [DAY_WEIGHTS[datetime(year, month, d).weekday()] for d in days],
+    )[0]
+    hour = rng.choices(range(24), HOUR_WEIGHTS)[0]
+
+    return datetime(
+        year, month, day, hour, rng.randrange(60), tzinfo=TIMEZONE
+    )
 
 
 def cress_on_duty(timestamp) -> bool:
