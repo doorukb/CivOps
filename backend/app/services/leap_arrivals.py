@@ -1,36 +1,118 @@
 """Shared source of call-arrival timing for the audit generator and the simulator.
 
-HONESTY NOTE: the hour and day weights below are FITTED to reproduce the brief's
-coverage totals. They are NOT copied from LEAP's published tables. If someone
-extracts the real tables from the LEAP PDF, only this file changes.
+The numbers live in app/data/arrival_model.yaml, with a `source` beside each
+set and a `provenance` flag that says whether they are fitted or copied from
+LEAP's tables. Read the honesty note at the top of that file before quoting
+anything derived from these weights.
 """
 
 import math
 import random
 from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Literal
 from zoneinfo import ZoneInfo
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models import CallType, Incident
 
+ARRIVAL_MODEL_PATH = Path(__file__).resolve().parents[1] / "data" / "arrival_model.yaml"
+
+
+class _Sourced(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    source: str = Field(min_length=1)
+
+
+class _Shares(_Sourced):
+    values: tuple[float, ...]
+
+    @model_validator(mode="after")
+    def shares_sum_to_one(self):
+        if any(value < 0 for value in self.values):
+            raise ValueError("weights cannot be negative")
+        if abs(sum(self.values) - 1) > 1e-6:
+            raise ValueError(f"weights must sum to 1, got {sum(self.values):.6f}")
+        return self
+
+
+class _CallTypeShares(_Sourced):
+    values: dict[CallType, float]
+
+    @model_validator(mode="after")
+    def shares_sum_to_one(self):
+        if set(self.values) != set(CallType):
+            raise ValueError("call_type_weights must list every call type exactly once")
+        if abs(sum(self.values.values()) - 1) > 1e-6:
+            raise ValueError("call_type_weights must sum to 1")
+        return self
+
+
+class _Number(_Sourced):
+    value: float = Field(gt=0)
+
+
+class ArrivalModel(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    provenance: Literal["fitted", "leap_tables"]
+    hour_weights: _Shares
+    day_weights: _Shares
+    call_type_weights: _CallTypeShares
+    calls_per_week: _Number
+    non_emergency_line_share: _Number
+
+    @model_validator(mode="after")
+    def shapes(self):
+        if len(self.hour_weights.values) != 24:
+            raise ValueError("hour_weights needs 24 values (hours 0 to 23)")
+        if len(self.day_weights.values) != 7:
+            raise ValueError("day_weights needs 7 values (Monday to Sunday)")
+        if self.non_emergency_line_share.value > 1:
+            raise ValueError("non_emergency_line_share is a share between 0 and 1")
+        return self
+
+    @property
+    def calibrated_to_leap(self) -> bool:
+        return self.provenance == "leap_tables"
+
+    @property
+    def timing_note(self) -> str:
+        if self.calibrated_to_leap:
+            return (
+                "Call timing follows the hour-of-day and day-of-week shares "
+                "published in LEAP's analysis of 2019 calls, assuming hour and "
+                "day are independent."
+            )
+        return (
+            "Call timing is fitted to the coverage totals calculated from "
+            "LEAP's 2019 hour-of-day and day-of-week figures, not copied from "
+            "LEAP's tables or raw call records."
+        )
+
+
+def load_arrival_model(path: Path = ARRIVAL_MODEL_PATH) -> ArrivalModel:
+    return ArrivalModel.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+
+
+ARRIVAL_MODEL = load_arrival_model()
+
 # Share of calls arriving in each clock hour (0-23). Sums to 1.
-HOUR_WEIGHTS = (
-    0.058, 0.050, 0.018, 0.016, 0.014, 0.014, 0.018, 0.020,
-    0.030, 0.036, 0.040, 0.042, 0.044, 0.046, 0.046, 0.046,
-    0.050, 0.055, 0.057, 0.058,
-    0.060, 0.062, 0.062, 0.058,
-)
+HOUR_WEIGHTS = ARRIVAL_MODEL.hour_weights.values
 
 # Share of calls per weekday, Monday=0 ... Sunday=6. Sums to 1.
-DAY_WEIGHTS = (0.132,) * 5 + (0.180, 0.160)
+DAY_WEIGHTS = ARRIVAL_MODEL.day_weights.values
 
-# Illustrative mix, not LEAP data.
-CALL_TYPE_WEIGHTS = (
-    (CallType.WELLBEING_CHECK, 0.30),
-    (CallType.DISTURBANCE, 0.27),
-    (CallType.SUSPICIOUS, 0.18),
-    (CallType.NOISE_COMPLAINT, 0.15),
-    (CallType.OTHER, 0.10),
+# (call type, share) in enum order.
+CALL_TYPE_WEIGHTS = tuple(
+    (call_type, ARRIVAL_MODEL.call_type_weights.values[call_type]) for call_type in CallType
 )
+
+CALLS_PER_WEEK = ARRIVAL_MODEL.calls_per_week.value
+NON_EMERGENCY_LINE_SHARE = ARRIVAL_MODEL.non_emergency_line_share.value
 
 TIMEZONE = ZoneInfo("America/New_York")
 
@@ -72,12 +154,13 @@ def generate_calls(
     rng: random.Random,
     start_day: date,
     weeks: int,
-    calls_per_week: float = 47,
+    calls_per_week: float = CALLS_PER_WEEK,
 ) -> list[Incident]:
     """Arrivals sorted by time, with all four safety answers False.
 
-    LEAP's ~2,420 appropriate calls per year (~47/week) are post-screening,
-    so every generated call has already passed the safety questions.
+    The weekly volume is a count of community-responder-appropriate calls,
+    i.e. calls that have already passed the safety questions, so every
+    generated call has all four answers False.
     """
     types, type_weights = zip(*CALL_TYPE_WEIGHTS, strict=True)
     calls = []

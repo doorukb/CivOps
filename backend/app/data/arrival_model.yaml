@@ -1,0 +1,53 @@
+# Arrival model: when synthetic calls arrive and what kind they are.
+#
+# The Monthly Audit generator and the What-If simulator both read this file
+# (through app/services/leap_arrivals.py), so they always share one model.
+#
+# HONESTY NOTE. `provenance: fitted` means the hour and day weights below were
+# chosen so that schedule coverage comes out at the four figures in the project
+# plan (22% / 36% / 55% / 87%). Those figures were themselves calculated from
+# LEAP's 2019 hour-of-day and day-of-week breakdowns, assuming hour and day are
+# independent. The weights are NOT copied from LEAP's published tables, so a
+# test that they reproduce the coverage figures is a regression check on the
+# fit, not a validation against real call data.
+#
+# To calibrate for real: transcribe LEAP's hour-of-day and day-of-week tables
+# into `values` (shares that sum to 1), put the page number in each `source`,
+# and set `provenance: leap_tables`. Nothing else in the code changes, and the
+# API then reports calibrated_to_leap: true for arrival timing.
+# Report: Law Enforcement Action Partnership, "Amherst Community Responder
+# Report" (November 2021).
+
+provenance: fitted   # fitted | leap_tables
+
+hour_weights:
+  # Share of calls arriving in each clock hour, 0 through 23.
+  source: "Fitted to the project plan's coverage figures; not a LEAP table"
+  values: [
+    0.058, 0.050, 0.018, 0.016, 0.014, 0.014, 0.018, 0.020,
+    0.030, 0.036, 0.040, 0.042, 0.044, 0.046, 0.046, 0.046,
+    0.050, 0.055, 0.057, 0.058, 0.060, 0.062, 0.062, 0.058,
+  ]
+
+day_weights:
+  # Share of calls per weekday, Monday through Sunday.
+  source: "Fitted to the project plan's coverage figures; not a LEAP table"
+  values: [0.132, 0.132, 0.132, 0.132, 0.132, 0.180, 0.160]
+
+call_type_weights:
+  source: "Illustrative mix; not LEAP data"
+  values:
+    wellbeing_check: 0.30
+    disturbance: 0.27
+    suspicious: 0.18
+    noise_complaint: 0.15
+    other: 0.10
+
+calls_per_week:
+  # 2,420 / 52 = 46.5
+  source: "Project plan: about 2,420 community-responder-appropriate calls per year in LEAP's analysis of 2019 calls. Not re-checked against the report."
+  value: 47
+
+non_emergency_line_share:
+  source: "Project plan: about 62% of eligible calls arrived on the non-emergency line. Not re-checked against the report. Used only to label synthetic audit records; no rule reads the line."
+  value: 0.62

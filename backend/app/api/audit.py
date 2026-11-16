@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.models import AuditRequest
 from app.services.audit import audit_calls, summarize_audit
+from app.services.leap_arrivals import ARRIVAL_MODEL
 from app.services.synthetic import generate_synthetic_month
 
 router = APIRouter(prefix="/audit", tags=["Monthly Audit"])
@@ -9,41 +10,40 @@ router = APIRouter(prefix="/audit", tags=["Monthly Audit"])
 
 @router.post("/run")
 def run_audit(request: AuditRequest):
+    """Replay your own records (at most 5,000) through the rulebook."""
     results = audit_calls(request.records)
-    summary = summarize_audit(results)
 
     return {
-        "summary": summary,
-        "results": results
+        "summary": summarize_audit(results),
+        "results": results,
     }
 
-@router.get("/demo")
-def demo_audit():
-    records = generate_synthetic_month(
-        year=2026,
-        month=11,
-        count=250,
-        seed=42
-    )
 
+@router.get("/demo")
+def demo_audit(
+    count: int = Query(250, ge=1, le=5_000, description="Synthetic calls to generate"),
+    seed: int = Query(42, ge=0, le=2**31 - 1, description="Same seed, same month"),
+    year: int = Query(2026, ge=2000, le=2100),
+    month: int = Query(11, ge=1, le=12),
+):
+    """A seeded synthetic month replayed through the rulebook."""
+    records = generate_synthetic_month(year=year, month=month, count=count, seed=seed)
     results = audit_calls(records)
-    summary = summarize_audit(results)
 
     return {
         "dataset": {
             "name": "Synthetic Amherst Dispatch Demo",
-            "year": 2026,
-            "month": 11,
+            "year": year,
+            "month": month,
+            "seed": seed,
             "synthetic": True,
-            "calibrated_to_leap": False,
+            "calibrated_to_leap": ARRIVAL_MODEL.calibrated_to_leap,
             "arrival_pattern": (
-                "Call timing is fitted to the coverage totals the brief "
-                "calculated from LEAP's 2019 hour-of-day and day-of-week "
-                "tables, not to LEAP's raw call records. Call mix, safety "
-                "answers and ‘actual’ outcomes are invented."
+                f"{ARRIVAL_MODEL.timing_note} Call mix, the line each call "
+                "came in on, safety answers and ‘actual’ outcomes are invented."
             ),
-            "count": len(records)
+            "count": len(records),
         },
-        "summary": summary,
-        "results": results
+        "summary": summarize_audit(results),
+        "results": results,
     }

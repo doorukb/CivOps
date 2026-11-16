@@ -41,7 +41,11 @@ class Incident(BaseModel):
     caller_requests_cress: bool | None = None
 
     timestamp: datetime | None = None
-    source_line: str | None = Field(default=None, max_length=64)
+    # Which line the call came in on. Recorded for the audit breakdown only:
+    # no rule reads it (see docs/RULEBOOK.md).
+    source_line: Literal["911", "non_emergency"] | None = None
+    # Where the caller says the incident is. Display only: no rule reads it.
+    location: str | None = Field(default=None, max_length=200)
 
     evidence: dict[str, str] = Field(default_factory=dict, max_length=16)
 

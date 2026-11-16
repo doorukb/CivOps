@@ -6,7 +6,12 @@ import simpy
 
 from app.models import CallType, Incident, SimulationConfig, SimulationResult
 from app.rulebook import Rulebook, load_rulebook
-from app.services.leap_arrivals import duration_multiplier, generate_calls
+from app.services.leap_arrivals import (
+    ARRIVAL_MODEL,
+    CALLS_PER_WEEK,
+    duration_multiplier,
+    generate_calls,
+)
 from app.services.rule_engine import evaluate_incident, is_on_duty
 
 
@@ -200,10 +205,10 @@ def simulate_incidents(
     )
 
 ASSUMPTIONS = [
-    "Call arrival times are fitted to coverage totals, not copied from LEAP's tables, and volume is about 47 calls per week.",
+    f"{ARRIVAL_MODEL.timing_note} Volume is about {CALLS_PER_WEEK:g} calls per week.",
     "Every eligible on-duty call goes to CRESS, so results are a ceiling on what CRESS could take, not what dispatch sends today (public testimony says roughly half a dozen a month).",
     "There is no queue or travel time: a call that arrives when every team is busy is missed, not held.",
-    "Utilization counts only dispatch-sent calls; CRESS's direct work is not modeled.",
+    "Utilization counts only dispatch-sent calls; CRESS's direct work is not modeled. A call that starts near the end of a shift keeps its team busy afterwards, but only the minutes inside the shift count toward utilization.",
     "Each handled call counts as one police call avoided.",
     "Call length is the configured average times a random multiplier with mean about 1 and spread set by duration_cv.",
 ]
@@ -226,7 +231,7 @@ def run_comparison(
     scenario: SimulationConfig,
     replications: int = 50,
     seed: int = 42,
-    calls_per_week: float = 47,
+    calls_per_week: float = CALLS_PER_WEEK,
     horizon_weeks: int = 4,
     duration_cv: float = 0.5
 ) -> dict:
@@ -237,7 +242,9 @@ def run_comparison(
     share_handled are per horizon. share_handled is handled / eligible, and
     "difference" is scenario minus baseline within each replication.
     """
-    start = date(2026, 1, 5)  # a Monday
+    # A fixed, arbitrary Monday in winter: whole weeks, no clock change inside
+    # the longest horizon (13 weeks), and the same calls on every run.
+    start = date(2026, 1, 5)
     end = start + timedelta(weeks=horizon_weeks)
     samples = {name: {m: [] for m in METRICS} for name in ("baseline", "scenario")}
 
@@ -272,4 +279,5 @@ def run_comparison(
             for m in METRICS
         },
         "assumptions": ASSUMPTIONS,
+        "calibrated_to_leap": ARRIVAL_MODEL.calibrated_to_leap,
     }
