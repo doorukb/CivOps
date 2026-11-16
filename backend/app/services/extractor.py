@@ -235,6 +235,7 @@ def extract_incident(transcript: str) -> ExtractionResult:
     values: dict[str, bool | None] = {}
     evidence: dict[str, str] = {}
     downgraded: dict[str, str] = {}
+    provenance: dict[str, str] = {}
     searchable = _normalize(transcript)
 
     for field in SAFETY_FIELDS:
@@ -264,11 +265,13 @@ def extract_incident(transcript: str) -> ExtractionResult:
 
         values[field] = value
         evidence[field] = quote
+        provenance[field] = "model"
 
     return ExtractionResult(
         call_type=extracted.call_type,
         caller_requests_cress=extracted.caller_requests_cress,
         evidence=evidence,
+        provenance=provenance,
         downgraded=downgraded,
         model=model,
         **values,

@@ -151,6 +151,13 @@ def evaluate_incident(
 
     rule = top_rules[0]
 
+    # Lowering urgency takes a person: see Decision.provisional.
+    unconfirmed = (
+        incident.unconfirmed_negatives()
+        if rule.destination is not Destination.HUMAN_REVIEW
+        else []
+    )
+
     return Decision(
         destination=rule.destination,
         rule_id=rule.id,
@@ -159,4 +166,6 @@ def evaluate_incident(
         on_duty=facts["on_duty"],
         source=rule.source,
         rulebook_version=rulebook.version,
+        provisional=bool(unconfirmed),
+        needs_confirmation=unconfirmed,
     )

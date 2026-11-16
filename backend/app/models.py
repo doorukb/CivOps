@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -19,6 +20,13 @@ class CallType(StrEnum):
     OTHER = "other"
 
 
+# The four screening answers. The order is the order they are asked and shown.
+SAFETY_FIELDS = ("weapon_present", "violence", "injury", "immediate_danger")
+
+# Who an answer comes from: the language model, or a person at the console.
+Provenance = Literal["model", "human"]
+
+
 class Incident(BaseModel):
     call_type: CallType | None = None
 
@@ -34,6 +42,11 @@ class Incident(BaseModel):
 
     evidence: dict[str, str] = Field(default_factory=dict, max_length=16)
 
+    # Which screening answers were proposed by the model and not yet confirmed
+    # by a person. An answer with no entry is treated as human-entered, which
+    # is the case for audit records, the simulator and hand-filled forms.
+    provenance: dict[str, Provenance] = Field(default_factory=dict)
+
     @field_validator("evidence")
     @classmethod
     def bound_evidence(cls, evidence: dict[str, str]) -> dict[str, str]:
@@ -42,9 +55,20 @@ class Incident(BaseModel):
                 raise ValueError("evidence entry is too long")
         return evidence
 
+    @field_validator("provenance")
+    @classmethod
+    def provenance_is_for_safety_fields(cls, provenance: dict) -> dict:
+        unknown = set(provenance) - set(SAFETY_FIELDS)
+        if unknown:
+            raise ValueError(f"provenance is only tracked for {SAFETY_FIELDS}")
+        return provenance
 
-# The four screening answers. The order is the order they are asked and shown.
-SAFETY_FIELDS = ("weapon_present", "violence", "injury", "immediate_danger")
+    def unconfirmed_negatives(self) -> list[str]:
+        """Screening answers that are "no" only because the model said so."""
+        return [
+            field for field in SAFETY_FIELDS
+            if getattr(self, field) is False and self.provenance.get(field) == "model"
+        ]
 
 
 class Destination(StrEnum):
@@ -67,6 +91,14 @@ class Decision(BaseModel):
     # Where the rule comes from, and which rulebook version produced this.
     source: str | None = None
     rulebook_version: str | None = None
+
+    # Autonomy in one direction only. The system may raise urgency by itself,
+    # but a recommendation that sends a call AWAY from a human dispatcher is
+    # provisional while any "no" it rests on was proposed by the model and not
+    # confirmed by a person. The destination and rule are unchanged; a
+    # provisional recommendation simply cannot be confirmed yet.
+    provisional: bool = False
+    needs_confirmation: list[str] = Field(default_factory=list)
 
 
 class EvaluationRequest(BaseModel):
