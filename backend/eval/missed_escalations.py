@@ -1,28 +1,36 @@
-"""Missed-escalation eval: disguised emergencies that avoid the tripwire keywords.
+"""Missed-escalation eval, v1 (ARCHIVED): disguised emergencies that avoid the
+tripwire keywords.
 
-Makes PAID Claude calls (one per case). Kept outside tests/ so pytest never runs it.
+v1 was run once, on 2026-11-15; its result is eval/results/v1/missed_escalations.json.
+It has no benign controls, so it cannot tell a careful system from one that
+escalates everything. Use eval.escalation_v2 for new runs. This file stays so
+the archived result can be reproduced; its cases must never be edited.
 
-    python -m eval.missed_escalations          # real run, needs ANTHROPIC_API_KEY
-    python -m eval.missed_escalations --check  # free: validate the cases only
+    python -m eval.missed_escalations --check                   # free: validate the cases
+    python -m eval.missed_escalations --yes --out results/x.json  # paid re-run, 27 calls
 
 Every transcript is fictional. The cases were written once and must not be tuned
 after seeing results.
 """
 
-import json
-import math
 import sys
 from collections import Counter
-from datetime import datetime
-from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from app.models import Destination
 from app.services.rule_engine import evaluate_incident
 from app.services.tripwires import scan_transcript
+from eval.common import (  # noqa: F401 - wilson and pct are re-exported
+    MONDAY_10AM,
+    RESULTS_DIR,
+    cli_path,
+    confirm_paid_run,
+    pct,
+    provenance,
+    wilson,
+    write_results,
+)
 
-RESULTS = Path(__file__).parent / "results" / "missed_escalations.json"
-MONDAY_10AM = datetime(2026, 11, 16, 10, 0, tzinfo=ZoneInfo("America/New_York"))
+RESULTS = RESULTS_DIR / "v1" / "missed_escalations.json"
 
 # (id, transcript). None contains a word from the tripwire list; --check enforces it.
 CASES = [
@@ -56,17 +64,6 @@ CASES = [
 ]
 
 
-def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
-    """Wilson score interval for k successes out of n."""
-    if n == 0:
-        return 0.0, 0.0
-    p = k / n
-    denom = 1 + z * z / n
-    centre = (p + z * z / (2 * n)) / denom
-    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
-    return max(0.0, centre - half), min(1.0, centre + half)
-
-
 def check_cases() -> list[str]:
     """Free validation: returns problems (empty means fine)."""
     problems = []
@@ -94,12 +91,7 @@ def bucket(tripwire: bool, rule_id: str, destination: Destination) -> str:
     return "other_review"  # e.g. call type not eligible: escalated, but not for safety
 
 
-def pct(k: int, n: int) -> str:
-    low, high = wilson(k, n)
-    return f"{k}/{n} = {k / n:.0%}  (Wilson 95% CI {low:.0%} to {high:.0%})"
-
-
-def run() -> dict:
+def run(out=RESULTS, overwrite=False) -> dict:
     from app.services.extractor import extract_incident  # lazy: needs the API key
 
     rows = []
@@ -143,8 +135,11 @@ def run() -> dict:
         "model_alone": model_caught,
         "combined": combined,
     }
-    RESULTS.parent.mkdir(exist_ok=True)
-    RESULTS.write_text(json.dumps({"summary": summary, "rows": rows}, indent=2))
+    write_results(
+        out,
+        {"meta": provenance("missed_escalations_v1", n), "summary": summary, "rows": rows},
+        overwrite,
+    )
 
     print(f"Disguised emergencies: n = {n} (small; intervals are wide), {errors} failed calls excluded\n")
     for name in ("tripwire", "fields", "incomplete_screening", "other_review", "missed"):
@@ -153,7 +148,7 @@ def run() -> dict:
     print("  tripwire alone ", pct(tripwire_caught, n), "<- 0 by design: cases avoid its keywords")
     print("  model alone    ", pct(model_caught, n))
     print("  combined       ", pct(combined, n))
-    print(f"\nPer-case results saved to {RESULTS}")
+    print(f"\nPer-case results saved to {out}")
     return summary
 
 
@@ -166,4 +161,5 @@ if __name__ == "__main__":
     problems = check_cases()
     if problems:
         sys.exit("Fix the cases first:\n" + "\n".join(problems))
-    run()
+    confirm_paid_run(len(CASES), sys.argv)
+    run(*cli_path(sys.argv, RESULTS))

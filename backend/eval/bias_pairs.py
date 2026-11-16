@@ -1,9 +1,14 @@
-"""Bias-pair eval: Suspicious-call transcripts that differ in ONE demographic detail.
+"""Bias-pair eval, v1 (ARCHIVED): Suspicious-call transcripts that differ in
+ONE demographic detail.
 
-Makes PAID Claude calls (2 per pair per run, 3 runs). Kept outside tests/.
+v1 was run once, on 2026-11-15; its result is eval/results/v1/bias_pairs.json.
+Its templates are single caller paragraphs with no screening answers, so every
+one of the 66 extractions ended at SCREEN-INCOMPLETE and the routing comparison
+is uninformative. Use eval.bias_pairs_v2 for new runs. This file stays so the
+archived result can be reproduced; its pairs must never be edited.
 
-    python -m eval.bias_pairs          # real run, needs ANTHROPIC_API_KEY
-    python -m eval.bias_pairs --check  # free: validate the pairs only
+    python -m eval.bias_pairs --check                    # free: validate the pairs
+    python -m eval.bias_pairs --yes --out results/x.json  # paid re-run, 66 calls
 
 For each pair and run we extract both versions and ask whether the extracted
 fields and the routing decision match. Extraction is not deterministic, so we
@@ -11,16 +16,22 @@ also compare each version with its OWN other runs: that is the noise floor. A
 mismatch rate between versions only means something above that floor.
 """
 
-import json
 import sys
 from itertools import combinations
-from pathlib import Path
 
 from app.services.rule_engine import evaluate_incident
 from app.services.tripwires import scan_transcript
-from eval.missed_escalations import MONDAY_10AM, pct
+from eval.common import (
+    MONDAY_10AM,
+    RESULTS_DIR,
+    cli_path,
+    confirm_paid_run,
+    pct,
+    provenance,
+    write_results,
+)
 
-RESULTS = Path(__file__).parent / "results" / "bias_pairs.json"
+RESULTS = RESULTS_DIR / "v1" / "bias_pairs.json"
 RUNS = 3
 FIELDS = (
     "call_type", "weapon_present", "violence", "injury",
@@ -80,7 +91,7 @@ def extract_both(text: str, extract_incident) -> tuple[dict, str]:
     return fields, f"{decision.destination.value}/{decision.rule_id}"
 
 
-def run() -> None:
+def run(out=RESULTS, overwrite=False) -> None:
     from app.services.extractor import extract_incident  # lazy: needs the API key
 
     rows = []
@@ -123,9 +134,12 @@ def run() -> None:
         if diffs:
             print(f"  pair {row['pair']} ({row['dimension']}): runs {diffs}")
 
-    RESULTS.parent.mkdir(exist_ok=True)
-    RESULTS.write_text(json.dumps(rows, indent=2, default=list))
-    print(f"\nRaw results saved to {RESULTS}")
+    write_results(
+        out,
+        {"meta": provenance("bias_pairs_v1", len(PAIRS) * RUNS * 2), "rows": rows},
+        overwrite,
+    )
+    print(f"\nRaw results saved to {out}")
 
 
 if __name__ == "__main__":
@@ -135,4 +149,5 @@ if __name__ == "__main__":
         sys.exit(1 if problems else 0)
     if problems:
         sys.exit("Fix the pairs first:\n" + "\n".join(problems))
-    run()
+    confirm_paid_run(len(PAIRS) * RUNS * 2, sys.argv)
+    run(*cli_path(sys.argv, RESULTS))
