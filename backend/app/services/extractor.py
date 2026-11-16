@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 # change the model, re-run the evaluations before quoting their numbers.
 DEFAULT_EXTRACTION_MODEL = "claude-haiku-4-5"
 MAX_OUTPUT_TOKENS = 600
+MAX_LOCATION_CHARS = 200
 
 
 def extraction_model() -> str:
@@ -74,6 +75,11 @@ SYSTEM_PROMPT = (
     "caller_requests_cress is true only if the caller explicitly asks "
     "for community responders or for no police, false only if they "
     "explicitly refuse community responders, and otherwise null. "
+
+    "location is where the caller says the incident is: a street address, "
+    "an intersection or a named place, copied exactly from the transcript as "
+    "one contiguous piece. If no place is stated, location is null. Never "
+    "guess or complete an address. "
 
     "Do not invent or paraphrase evidence. "
 
@@ -173,6 +179,7 @@ class ExtractedIncident(BaseModel):
     injury: SafetyFinding
     immediate_danger: SafetyFinding
     caller_requests_cress: bool | None
+    location: str | None = None
 
 
 class ExtractionResult(Incident):
@@ -267,8 +274,16 @@ def extract_incident(transcript: str) -> ExtractionResult:
         evidence[field] = quote
         provenance[field] = "model"
 
+    # Location is display-only (no rule reads it), but it still has to be the
+    # caller's own words: an address the model made up is dropped.
+    location = (extracted.location or "").strip()[:MAX_LOCATION_CHARS] or None
+    if location and _normalize(location) not in searchable:
+        downgraded["location"] = "The location is not in the transcript."
+        location = None
+
     return ExtractionResult(
         call_type=extracted.call_type,
+        location=location,
         caller_requests_cress=extracted.caller_requests_cress,
         evidence=evidence,
         provenance=provenance,

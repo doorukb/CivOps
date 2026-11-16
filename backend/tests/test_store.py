@@ -242,12 +242,15 @@ def test_live_transcripts_are_stored_only_with_the_explicit_flag(monkeypatch):
 
 
 def test_typed_transcript_review_keeps_no_evidence_quotes():
-    record = review(incident={**CLEAN, "evidence": {"injury": "nobody is hurt"}}).json()
+    record = review(incident={
+        **CLEAN, "evidence": {"injury": "nobody is hurt"}, "location": "14 Maple Court",
+    }).json()
 
     stored = client.get(f"/calls/{record['call_id']}").json()
 
     assert stored["source"] == "manual"
     assert stored["decisions"][0]["incident"]["evidence"] == {}
+    assert stored["decisions"][0]["incident"]["location"] is None
 
 
 def test_error_marker_closes_the_call_as_error():

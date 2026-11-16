@@ -381,3 +381,56 @@ def test_short_quote_is_checked_at_every_place_it_occurs(monkeypatch):
     )
 
     assert incident.weapon_present is None
+
+
+# --- Location: display-only, and still has to be the caller's own words (G-08) -
+
+def with_location(monkeypatch, transcript, location):
+    canned = ExtractedIncident(
+        call_type="wellbeing_check",
+        caller_requests_cress=None,
+        location=location,
+        **{f: {"value": None, "evidence": None} for f in SAFETY},
+    )
+    monkeypatch.setattr(
+        extractor, "_client",
+        lambda: SimpleNamespace(
+            messages=SimpleNamespace(parse=lambda **_: SimpleNamespace(parsed_output=canned))
+        ),
+    )
+    return extractor.extract_incident(transcript)
+
+
+def test_stated_location_is_kept(monkeypatch):
+    incident = with_location(
+        monkeypatch, "Caller: He lives at 14 Maple Court, downstairs.", "14 maple court"
+    )
+
+    assert incident.location == "14 maple court"
+
+
+def test_invented_location_is_dropped(monkeypatch):
+    incident = with_location(monkeypatch, "Caller: He lives near the park.", "221B Baker Street")
+
+    assert incident.location is None
+    assert incident.downgraded == {"location": "The location is not in the transcript."}
+
+
+def test_no_location_is_fine(monkeypatch):
+    assert with_location(monkeypatch, "Caller: hello", None).location is None
+
+
+def test_location_never_affects_the_recommendation():
+    from app.models import Incident
+    from app.services.rule_engine import evaluate_incident
+
+    base = {
+        "call_type": "wellbeing_check", "weapon_present": False, "violence": False,
+        "injury": False, "immediate_danger": False, "timestamp": "2026-11-16T14:00:00-05:00",
+    }
+    decisions = {
+        evaluate_incident(Incident(**base, location=place)).model_dump_json()
+        for place in (None, "14 Maple Court", "the police station")
+    }
+
+    assert len(decisions) == 1

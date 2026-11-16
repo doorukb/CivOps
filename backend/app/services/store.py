@@ -191,6 +191,7 @@ class Store:
         stored = incident.model_dump(mode="json")
         if not stores_words(source):
             stored["evidence"] = {}  # quotes are transcript text
+            stored["location"] = None  # so is the stated location
 
         now = _now()
 
