@@ -1,15 +1,22 @@
 from zoneinfo import ZoneInfo
 
 from app.models import AuditRecord
+from app.rulebook import Rulebook, load_rulebook
 from app.services.rule_engine import evaluate_incident
 
 
-def audit_calls(records: list[AuditRecord]) -> list[dict]:
+def audit_calls(
+    records: list[AuditRecord], rulebook: Rulebook | None = None
+) -> list[dict]:
+    """Replay each record through the rulebook, loaded once for the whole run."""
+    if rulebook is None:
+        rulebook = load_rulebook()
+
     results = []
 
     for record in records:
         decision = evaluate_incident(
-            record.incident, transcript=record.transcript
+            record.incident, rulebook, transcript=record.transcript
         )
 
         results.append(classify_audit_result({
@@ -18,6 +25,7 @@ def audit_calls(records: list[AuditRecord]) -> list[dict]:
             "recommended_destination": decision.destination.value,
             "rule_id": decision.rule_id,
             "reason": decision.reason,
+            "source": decision.source,
             "eligible": decision.eligible,
             "on_duty": decision.on_duty,
             "timestamp": (record.incident.timestamp.isoformat()

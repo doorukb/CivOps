@@ -1,29 +1,36 @@
 import random
-from copy import deepcopy
 from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
 
 import numpy as np
 import simpy
 
-from app.models import Incident, SimulationConfig, SimulationResult
+from app.models import CallType, Incident, SimulationConfig, SimulationResult
+from app.rulebook import Rulebook, load_rulebook
 from app.services.leap_arrivals import duration_multiplier, generate_calls
-from app.services.rule_engine import evaluate_incident, load_rulebook
+from app.services.rule_engine import evaluate_incident
 
 
-def build_scenario_rulebook(config: SimulationConfig) -> dict:
-    rulebook = deepcopy(load_rulebook())
+def build_scenario_rulebook(config: SimulationConfig) -> Rulebook:
+    """The shipped rulebook with the scenario's schedule and call types.
 
-    rulebook["schedule"]["start_hour"] = config.start_hour
-    rulebook["schedule"]["end_hour"] = config.end_hour
+    Returns a validated copy; the shared rulebook is immutable and unchanged.
+    """
+    base = load_rulebook()
+    schedule: dict = {
+        "start_hour": config.start_hour,
+        "end_hour": config.end_hour,
+    }
 
     if config.include_weekends:
-        rulebook["schedule"]["weekdays"] = list(range(7))
+        schedule["weekdays"] = tuple(range(7))
 
-    if config.include_noise_complaints:
-        rulebook["eligible_call_types"].append("noise_complaint")
+    eligible = base.eligible_call_types
 
-    return rulebook
+    if config.include_noise_complaints and CallType.NOISE_COMPLAINT not in eligible:
+        eligible = (*eligible, CallType.NOISE_COMPLAINT)
+
+    return base.with_changes(schedule=schedule, eligible_call_types=eligible)
+
 
 def simulate_incidents(
     incidents: list[Incident],
@@ -81,7 +88,7 @@ def simulate_incidents(
             metrics["handled_calls"] += 1
 
             # Calculate minutes remaining in this work shift
-            timezone = ZoneInfo(rulebook["schedule"]["timezone"])
+            timezone = rulebook.schedule.tzinfo
             local_arrival = arrival_timestamp.astimezone(timezone)
 
             shift_end = (
@@ -153,7 +160,7 @@ def simulate_incidents(
     env.run()
 
     # Calculate scheduled capacity across the simulation period
-    timezone = ZoneInfo(rulebook["schedule"]["timezone"])
+    timezone = rulebook.schedule.tzinfo
 
     if horizon_start is not None and horizon_end is not None:
         first_day = horizon_start
@@ -166,7 +173,7 @@ def simulate_incidents(
     current_day = first_day
 
     while current_day <= last_day:
-        if current_day.weekday() in rulebook["schedule"]["weekdays"]:
+        if current_day.weekday() in rulebook.schedule.weekdays:
             scheduled_days += 1
 
         current_day += timedelta(days=1)

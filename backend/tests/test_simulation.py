@@ -31,12 +31,12 @@ def test_scenario_rulebook():
     scenario = build_scenario_rulebook(config)
     baseline = load_rulebook()
 
-    assert scenario["schedule"]["end_hour"] == 20
-    assert scenario["schedule"]["weekdays"] == list(range(7))
+    assert scenario.schedule.end_hour == 20
+    assert scenario.schedule.weekdays == tuple(range(7))
 
     # The original policy must remain unchanged
-    assert baseline["schedule"]["end_hour"] == 16
-    assert baseline["schedule"]["weekdays"] == [0, 1, 2, 3, 4]
+    assert baseline.schedule.end_hour == 16
+    assert baseline.schedule.weekdays == (0, 1, 2, 3, 4)
 
 from app.models import Incident
 from app.services.simulator import simulate_incidents
@@ -174,9 +174,9 @@ def test_noise_complaints_only_eligible_when_requested():
     off = build_scenario_rulebook(SimulationConfig())
     on = build_scenario_rulebook(SimulationConfig(include_noise_complaints=True))
 
-    assert "noise_complaint" not in off["eligible_call_types"]
-    assert on["eligible_call_types"][-1] == "noise_complaint"
-    assert "noise_complaint" not in load_rulebook()["eligible_call_types"]
+    assert "noise_complaint" not in off.eligible_call_types
+    assert on.eligible_call_types[-1] == "noise_complaint"
+    assert "noise_complaint" not in load_rulebook().eligible_call_types
 
 
 def test_horizon_fixes_utilization_denominator():

@@ -43,6 +43,10 @@ class Incident(BaseModel):
         return evidence
 
 
+# The four screening answers. The order is the order they are asked and shown.
+SAFETY_FIELDS = ("weapon_present", "violence", "injury", "immediate_danger")
+
+
 class Destination(StrEnum):
     CRESS = "cress"
     POLICE = "police"
@@ -60,7 +64,9 @@ class Decision(BaseModel):
 
     eligible: bool | None = None
     on_duty: bool | None = None
+    # Where the rule comes from, and which rulebook version produced this.
     source: str | None = None
+    rulebook_version: str | None = None
 
 
 class EvaluationRequest(BaseModel):

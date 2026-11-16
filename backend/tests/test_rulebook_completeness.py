@@ -4,7 +4,6 @@ true/false/unknown safety pattern, every half-hour of a week. 6 * 81 * 336 = 163
 from collections import Counter
 from datetime import datetime, timedelta
 from itertools import product
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -12,8 +11,8 @@ from app.models import CallType, Destination, Incident
 from app.services.rule_engine import evaluate_incident, load_rulebook
 
 RULEBOOK = load_rulebook()
-SAFETY = RULEBOOK["screening"]["safety_fields"]
-TZ = ZoneInfo(RULEBOOK["schedule"]["timezone"])
+SAFETY = RULEBOOK.screening.safety_fields
+TZ = RULEBOOK.schedule.tzinfo
 MONDAY = datetime(2026, 11, 16, tzinfo=TZ)  # no DST change this week
 
 CALL_TYPES = [*CallType, None]
@@ -58,12 +57,19 @@ def test_cress_only_when_all_four_answers_are_false(outcomes):
 
 def test_every_rule_fires(outcomes):
     fired = Counter(decision.rule_id for _, decision in outcomes)
-    expected = {r["id"] for r in RULEBOOK["rules"]} | {
-        RULEBOOK["screening"]["escalation"]["id"],
-        RULEBOOK["screening"]["incomplete"]["id"],
-        "CONTEXT-INCOMPLETE",
+    # TRANSCRIPT-TRIPWIRE needs a transcript, so it is covered separately below.
+    expected = {rule.id for rule in RULEBOOK.rules} | {
+        RULEBOOK.screening.escalation.id,
+        RULEBOOK.screening.incomplete.id,
+        RULEBOOK.screening.context_incomplete.id,
     }
     assert expected <= set(fired)
+
+
+def test_every_decision_cites_a_source_and_the_rulebook_version(outcomes):
+    for _, decision in outcomes:
+        assert decision.source
+        assert decision.rulebook_version == RULEBOOK.version
 
 
 def clean(hour, minute, transcript=None):
