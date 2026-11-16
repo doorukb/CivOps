@@ -1,7 +1,14 @@
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Request-size limits. This is a localhost demo, but an unbounded body is still
+# an easy way to pin a CPU, so every free-text field and list has a ceiling.
+MAX_TRANSCRIPT_CHARS = 20_000
+MAX_EVENT_TEXT_CHARS = 2_000
+MAX_AUDIT_RECORDS = 5_000
+MAX_SIMULATION_INCIDENTS = 20_000
 
 
 class CallType(StrEnum):
@@ -23,9 +30,18 @@ class Incident(BaseModel):
     caller_requests_cress: bool | None = None
 
     timestamp: datetime | None = None
-    source_line: str | None = None
+    source_line: str | None = Field(default=None, max_length=64)
 
-    evidence: dict[str, str] = Field(default_factory=dict)
+    evidence: dict[str, str] = Field(default_factory=dict, max_length=16)
+
+    @field_validator("evidence")
+    @classmethod
+    def bound_evidence(cls, evidence: dict[str, str]) -> dict[str, str]:
+        for field, quote in evidence.items():
+            if len(field) > 64 or len(quote) > MAX_EVENT_TEXT_CHARS:
+                raise ValueError("evidence entry is too long")
+        return evidence
+
 
 class Destination(StrEnum):
     CRESS = "cress"
@@ -34,6 +50,7 @@ class Destination(StrEnum):
     CRISIS = "crisis"
     CRESS_FOLLOWUP = "cress_followup"
     HUMAN_REVIEW = "human_review"
+
 
 class Decision(BaseModel):
     destination: Destination
@@ -45,18 +62,22 @@ class Decision(BaseModel):
     on_duty: bool | None = None
     source: str | None = None
 
+
 class EvaluationRequest(BaseModel):
     incident: Incident
-    transcript: str | None = None
+    transcript: str | None = Field(default=None, max_length=MAX_TRANSCRIPT_CHARS)
+
 
 class AuditRecord(BaseModel):
-    call_id: str
+    call_id: str = Field(min_length=1, max_length=64)
     incident: Incident
     actual_destination: Destination
-    transcript: str | None = None  # scanned by the tripwires when present
+    # Scanned by the tripwires when present.
+    transcript: str | None = Field(default=None, max_length=MAX_TRANSCRIPT_CHARS)
+
 
 class AuditRequest(BaseModel):
-    records: list[AuditRecord]
+    records: list[AuditRecord] = Field(max_length=MAX_AUDIT_RECORDS)
 
 class SimulationConfig(BaseModel):
     start_hour: int = Field(default=8, ge=0, le=23)
@@ -85,8 +106,9 @@ class SimulationResult(BaseModel):
     missed_busy: int
     utilization: float
 
+
 class TranscriptEvent(BaseModel):
-    speaker: str
-    text: str
+    speaker: str = Field(max_length=32)
+    text: str = Field(max_length=MAX_EVENT_TEXT_CHARS)
     is_final: bool
     t: float = Field(ge=0)
