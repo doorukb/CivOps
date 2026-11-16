@@ -13,6 +13,7 @@ from starlette.responses import PlainTextResponse
 from starlette.websockets import WebSocketClose
 
 from app.api.audit import router as audit_router
+from app.api.records import router as records_router
 from app.api.simulation import router as simulation_router
 from app.models import (
     CALL_ID_PATTERN,
@@ -33,6 +34,7 @@ from app.services.call_session import (
 )
 from app.services.extractor import ExtractionResult, extract_incident
 from app.services.rule_engine import evaluate_incident
+from app.services.store import get_store
 from app.services.tripwires import scan_transcript
 
 logger = logging.getLogger(__name__)
@@ -123,6 +125,7 @@ app = FastAPI(
 app.add_middleware(LocalRequestsOnly)
 app.include_router(audit_router)
 app.include_router(simulation_router)
+app.include_router(records_router)
 
 
 @app.get("/")
@@ -208,6 +211,41 @@ async def broadcast_event(event: TranscriptEvent) -> int:
     return delivered
 
 
+def record_event(event: TranscriptEvent) -> None:
+    """Write a call's lifecycle and (where allowed) its final transcript lines
+    to the call log. The log is best effort: a database problem must never
+    interrupt a call."""
+    if event.call_id is None:
+        return
+
+    try:
+        store = get_store()
+
+        if event.speaker == "system":
+            if event.text in (CALL_ENDED, CALL_ERROR):
+                store.end_call(
+                    event.call_id, "ended" if event.text == CALL_ENDED else "error"
+                )
+        elif event.is_final:
+            # The store keeps words only for scripted (fictional) calls.
+            store.add_segment(event.call_id, event.t, event.speaker, event.text)
+    except Exception as error:
+        logger.error("Call log write failed: %s", type(error).__name__)
+
+
+def open_call_record(call_id: str, source: str) -> None:
+    try:
+        get_store().start_call(call_id, source)
+    except Exception as error:
+        logger.error("Call log write failed: %s", type(error).__name__)
+
+
+async def publish_event(event: TranscriptEvent) -> int:
+    """Log, then broadcast. Every event of a session goes through here."""
+    record_event(event)
+    return await broadcast_event(event)
+
+
 def event_token() -> str:
     return os.environ.get("CIVOPS_EVENT_TOKEN", "")
 
@@ -243,7 +281,7 @@ def post_event(event: TranscriptEvent, timeout: float = 2.0) -> None:
     if loop is None:
         return  # server is shutting down, or the app runs without a lifespan
 
-    future = asyncio.run_coroutine_threadsafe(broadcast_event(event), loop)
+    future = asyncio.run_coroutine_threadsafe(publish_event(event), loop)
 
     try:
         future.result(timeout=timeout)
@@ -323,6 +361,7 @@ def start_microphone_call(call_id: str | None = CallId):
             return {"status": "already_running"}
 
         call_id = call_id or new_call_id()
+        open_call_record(call_id, "microphone")
         stop_event = threading.Event()
 
         thread = threading.Thread(
@@ -380,8 +419,9 @@ async def play_scenario(
             return {"status": "already_running"}
 
         call_id = call_id or new_call_id()
+        open_call_record(call_id, f"script:{scenario_id}")
         script_task = asyncio.create_task(
-            run_scenario(scenario_id, broadcast_event, speed, call_id)
+            run_scenario(scenario_id, publish_event, speed, call_id)
         )
 
     return {"status": "started", "call_id": call_id}
