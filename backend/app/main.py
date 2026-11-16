@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketClose
 
 from app.api.audit import router as audit_router
 from app.api.simulation import router as simulation_router
-from app.models import Decision, EvaluationRequest, Incident, TranscriptEvent
+from app.models import Decision, EvaluationRequest, TranscriptEvent
 from app.services.call_session import (
     CALL_ENDED,
     CALL_ERROR,
@@ -22,7 +22,7 @@ from app.services.call_session import (
 from app.services.call_session import (
     play_scenario as run_scenario,
 )
-from app.services.extractor import extract_incident
+from app.services.extractor import ExtractionResult, extract_incident
 from app.services.rule_engine import evaluate_incident
 from app.services.tripwires import scan_transcript
 
@@ -93,7 +93,7 @@ class ExtractionRequest(BaseModel):
     transcript: str = Field(max_length=20_000)
 
 
-@app.post("/calls/extract", response_model=Incident)
+@app.post("/calls/extract", response_model=ExtractionResult)
 def extract_call(request: ExtractionRequest):
     if not request.transcript.strip():
         raise HTTPException(
