@@ -54,43 +54,6 @@ export interface SimulationConfig {
   include_noise_complaints?: boolean
 }
 
-export interface SimulationResult {
-  total_calls: number
-  eligible_calls: number
-  handled_calls: number
-  missed_off_duty: number
-  missed_busy: number
-  utilization: number
-}
-
-export interface SimulationIncident {
-  call_type: string
-  weapon_present: boolean
-  violence: boolean
-  injury: boolean
-  immediate_danger: boolean
-  timestamp: string
-}
-
-export async function runSimulation(
-  config: SimulationConfig,
-  incidents: SimulationIncident[]
-): Promise<SimulationResult> {
-  const response = await fetch('/api/simulation/run', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ config, incidents }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Simulation API returned ${response.status}`)
-  }
-
-  return response.json()
-}
-
 export interface MetricBand {
   mean: number
   p10: number

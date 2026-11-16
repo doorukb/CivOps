@@ -17,22 +17,6 @@ def test_invalid_team_count():
     with pytest.raises(ValidationError):
         SimulationConfig(teams=0)
 
-from app.services.simulator import run_simulation
-
-
-def test_simulation_capacity():
-    config = SimulationConfig(teams=1)
-
-    result = run_simulation(
-        config=config,
-        call_times=[0, 10, 20],
-        durations=[60, 60, 60]
-    )
-
-    assert result.total_calls == 3
-    assert result.handled_calls == 1
-    assert result.missed_busy == 2
-
 from app.services.simulator import build_scenario_rulebook
 from app.services.rule_engine import load_rulebook
 

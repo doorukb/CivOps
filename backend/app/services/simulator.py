@@ -11,61 +11,6 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 
-def simulate_call(env, teams, duration, metrics):
-    # If every team is occupied, record a missed call
-    if teams.count >= teams.capacity:
-        metrics["missed_busy"] += 1
-        return
-
-    # Otherwise, occupy a team
-    with teams.request() as request:
-        yield request
-
-        metrics["handled_calls"] += 1
-
-        # Time spent responding
-        yield env.timeout(duration)
-
-def run_simulation(
-    config: SimulationConfig,
-    call_times: list[float],
-    durations: list[float]
-) -> SimulationResult:
-
-    env = simpy.Environment()
-    teams = simpy.Resource(env, capacity=config.teams)
-
-    metrics = {
-        "handled_calls": 0,
-        "missed_busy": 0,
-        "busy_team_minutes": 0.0
-    }
-
-    def arrival_process():
-        previous_time = 0.0
-
-        for arrival_time, duration in zip(call_times, durations):
-            yield env.timeout(arrival_time - previous_time)
-            previous_time = arrival_time
-
-            env.process(
-                simulate_call(env, teams, duration, metrics)
-            )
-
-    env.process(arrival_process())
-    env.run()
-
-    total_calls = len(call_times)
-
-    return SimulationResult(
-        total_calls=total_calls,
-        eligible_calls=total_calls,
-        handled_calls=metrics["handled_calls"],
-        missed_off_duty=0,
-        missed_busy=metrics["missed_busy"],
-        utilization=0.0
-    )
-
 def build_scenario_rulebook(config: SimulationConfig) -> dict:
     rulebook = deepcopy(load_rulebook())
 
