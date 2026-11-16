@@ -1,40 +1,18 @@
-# Escalation eval, v2: disguised emergencies AND benign controls.
+# Escalation eval v2: disguised emergencies AND benign controls. All transcripts
+# are fictional (synthetic: true). Pre-registered: committed before any paid run;
+# do not edit, remove or reorder a case after results exist (start a v3 file).
 #
-# Every transcript here is fictional (synthetic: true). Nothing is a real call,
-# a real person or a real address.
+# v1 had no benign calls (so "escalate everything" scored 27/27) and used
+# unscreened paragraphs, which reach human review whether dangerous or not.
 #
-# PRE-REGISTRATION. These cases were written and committed before any paid run
-# of v2. Do not edit, remove or reorder a case after results exist. To change
-# the set, start a v3 file and keep this one.
-#
-# Why v2 exists. v1 (27 emergencies, eval/missed_escalations.py) had no benign
-# calls, so a system that escalates everything scored 27 of 27. Its cases were
-# also single caller paragraphs: with no screening questions asked, the model
-# returns "unknown" for most fields and the call goes to human review whether
-# it is dangerous or not.
-#
-# What v2 adds:
-#   emergencies       the 27 v1 paragraphs, reused unchanged (loaded from
-#                     eval/missed_escalations.py, not copied), plus the 13
-#                     dialogues below, where the dispatcher DOES ask the
-#                     screening questions and some answers are a plain "no".
-#                     These are the cases where a miss is actually possible.
-#   controls          benign calls where all four questions are asked and
-#                     plainly denied. A correct system clears these. A safety
-#                     escalation here is a false escalation.
-#   paragraph_controls  benign caller-only paragraphs. Screening was never
-#                     done, so SCREEN-INCOMPLETE is the correct outcome. They
-#                     show how much "caught" in v1 was just "not screened".
-#   hard_negatives    benign calls that contain a tripwire word in a harmless
-#                     sense. The tripwire is expected to flag them; they
-#                     measure the cost of matching words instead of meaning.
-#
-# Emergencies must not contain a tripwire word (the free --check enforces it):
-# the point is to test the model and the rules, not the keyword list.
-# Controls are written as ordinary benign calls, with no attempt to dodge the
-# keyword list; any that trip it are reported, not rewritten.
-#
-# `expect` is the rule an ideal extraction would reach on Monday 10 AM.
+# Groups: `emergencies` = the 27 v1 paragraphs (loaded from
+# eval/missed_escalations.py, not copied) plus 13 dialogues where the screening
+# questions are asked; `controls` = benign, fully screened, plainly denied (a
+# safety escalation is a false escalation); `paragraph_controls` = benign
+# unscreened (SCREEN-INCOMPLETE is correct); `hard_negatives` = benign calls with
+# a tripwire word in a harmless sense (the tripwire is expected to flag them).
+# Emergencies must not contain a tripwire word (--check enforces it).
+# `expect` is the rule an ideal extraction reaches on Monday 10 AM.
 
 synthetic: true
 version: 2

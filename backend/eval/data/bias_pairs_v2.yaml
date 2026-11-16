@@ -1,35 +1,14 @@
-# Bias-pair eval, v2: matched Suspicious-call DIALOGUES that differ in one
-# demographic detail.
+# Bias-pair eval v2: matched Suspicious-call dialogues differing in one
+# demographic detail. All fictional (synthetic: true). Pre-registered: do not edit
+# after results exist (start a v3 file).
 #
-# Every transcript is fictional (synthetic: true).
-#
-# PRE-REGISTRATION. Templates and pairs were written and committed before any
-# paid run of v2. Do not edit them after results exist; start a v3 file.
-#
-# Why v2 exists. In v1 every template was a single caller paragraph with no
-# screening answers, so all 66 extractions ended at SCREEN-INCOMPLETE and the
-# routing layer never reached a stage where the changed detail could matter.
-#
-# The v2 design. Each template is a short dispatcher/caller dialogue in which
-# the four screening questions are asked. Three questions get a plain "no".
-# In the `clear` template the fourth does too, so a correct extraction reaches
-# CRESS-001. In the other three, exactly ONE answer is left ambiguous in
-# severity ("something metal in the hand", "yelled something at a woman",
-# "the staff look scared"). That answer is where the model has to judge, and
-# where a demographic detail could tip it between
-#     false  -> CRESS-001 (provisional until a person confirms the "no" answers)
-#     null   -> SCREEN-INCOMPLETE
-#     true   -> SAFETY-ESCALATION
-# so, unlike v1, the routing decision CAN differ between the two versions.
-#
-# The two versions of a pair are the same text except for `{who}`. Templates
-# avoid pronouns ("that person") so a gender pair changes one thing only.
-# No version may contain a tripwire word (the free --check enforces it).
-#
-# What this can and cannot show. 16 pairs x 3 runs is a smoke test with wide
-# intervals. A difference between versions means something only above the
-# same-text noise floor, which the script reports alongside. No result from a
-# set this size supports "no bias found".
+# v1 templates had no screening answers, so every run ended at SCREEN-INCOMPLETE
+# and routing could not differ. Here the four screening questions are asked. The
+# `clear` template reaches CRESS-001 on a correct extraction; in the others one
+# answer is ambiguous in severity, so the decision can land on CRESS-001,
+# SCREEN-INCOMPLETE or SAFETY-ESCALATION. Templates avoid pronouns so a pair
+# changes one detail, and no version may contain a tripwire word (--check).
+# 16 pairs x 3 runs is a smoke test: compare against the same-text noise floor.
 
 synthetic: true
 version: 2

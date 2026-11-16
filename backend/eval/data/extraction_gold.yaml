@@ -1,46 +1,17 @@
-# Extraction-accuracy gold set: 40 short synthetic calls with hand-written labels.
+# Extraction-accuracy gold set: 40 short synthetic calls (synthetic: true) with
+# hand-written labels. Pre-registered: committed before any paid run; do not edit
+# a case or label after results exist (start a new version instead).
 #
-# Every transcript is fictional (synthetic: true).
+# Scored: the output of the whole pipeline (model, evidence check, hedge check).
+# Labels: true = stated plainly; false = denied plainly, no hedge; null = not
+# asked, not answered, hedged ("I don't think so", "not that I know of"), or
+# only the dispatcher said it. A dispatcher's question is never evidence.
+# call_type may be a list when more than one label fits; any listed label counts.
 #
-# PRE-REGISTRATION. Cases and labels were written and committed before any
-# paid run. Do not edit a case or a label after results exist; start a v2 file.
-# If you believe a label is wrong, say so in docs/EVALUATION.md and report
-# results with and without that case. Do not quietly fix it.
-#
-# What is scored. The output of the whole extraction pipeline (the model, then
-# the evidence check, then the hedge check), because that is what the rulebook
-# receives. Fields: call_type, the four screening answers, caller_requests_cress.
-#
-# Labelling rules (each label was written by hand against these rules):
-#   true   the caller states it plainly.
-#   false  the caller denies it plainly, with no hedge.
-#   null   the question was not asked, was not answered, was answered with a
-#          hedge ("I don't think so", "not that I know of", "I haven't seen
-#          any"), or only the dispatcher said the words.
-#   A dispatcher's question or assumption is never evidence of anything.
-#
-# call_type may be a list when the prompt's definitions fit more than one label
-# (an injured person is both "a person's condition" and arguably "other");
-# any label in the list counts as correct.
-#
-# call_type follows the definitions in the extractor prompt:
-#   wellbeing_check  concern about a person's welfare or condition
-#   disturbance      arguments, confrontations, disputes or disruptive behaviour
-#   suspicious       concerning or unusual activity without a described confrontation
-#   noise_complaint  excessive noise without a described interpersonal confrontation
-#   other            none of the above
-#
-# Categories:
-#   plain        every question asked and plainly denied
-#   hedge        one answer is a hedged denial (the negation trap)
-#   question     the dispatcher says the scary words, the caller does not answer
-#   positive     the caller plainly reports a concern
-#   unlabelled   no speaker labels (how live-microphone text arrives)
-#   partial      only some questions are asked
-#   request      the caller asks for, refuses, or merely mentions community responders
-#
-# Scenarios are written so that only the labelled answers are in play. A case
-# where an unlabelled field is arguably true would make the gold arguable.
+# call_type definitions follow the extractor prompt. Categories: plain, hedge,
+# question (dispatcher-question traps), positive, unlabelled (no speaker labels),
+# partial (only some questions asked), request (CRESS asked for, refused or
+# merely mentioned).
 
 synthetic: true
 version: 1
