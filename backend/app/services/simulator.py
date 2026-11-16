@@ -7,7 +7,7 @@ import simpy
 from app.models import CallType, Incident, SimulationConfig, SimulationResult
 from app.rulebook import Rulebook, load_rulebook
 from app.services.leap_arrivals import duration_multiplier, generate_calls
-from app.services.rule_engine import evaluate_incident
+from app.services.rule_engine import evaluate_incident, is_on_duty
 
 
 def build_scenario_rulebook(config: SimulationConfig) -> Rulebook:
@@ -87,18 +87,19 @@ def simulate_incidents(
 
             metrics["handled_calls"] += 1
 
-            # Calculate minutes remaining in this work shift
-            timezone = rulebook.schedule.tzinfo
-            local_arrival = arrival_timestamp.astimezone(timezone)
-
-            shift_end = (
-                datetime.combine(
-                    local_arrival.date(),
-                    time.min,
-                    tzinfo=timezone
-                )
-                + timedelta(hours=config.end_hour)
+            # Minutes left in the shift this call arrived in. A call in the
+            # small hours belongs to the shift that started the day before.
+            schedule = rulebook.schedule
+            local_arrival = arrival_timestamp.astimezone(schedule.tzinfo)
+            midnight = datetime.combine(
+                local_arrival.date(), time.min, tzinfo=schedule.tzinfo
             )
+            end_hour = (
+                config.end_hour
+                if local_arrival.hour >= config.start_hour
+                else config.end_hour - 24
+            )
+            shift_end = midnight + timedelta(hours=end_hour)
 
             remaining_shift_minutes = max(
                 0,
@@ -159,33 +160,30 @@ def simulate_incidents(
     env.process(arrival_process())
     env.run()
 
-    # Calculate scheduled capacity across the simulation period
-    timezone = rulebook.schedule.tzinfo
+    # Scheduled capacity: every on-duty team-hour inside the period. Counting
+    # hour by hour handles shifts that run past midnight (the first day's small
+    # hours can belong to a shift that started before the period, and the last
+    # shift's tail falls outside it).
+    schedule = rulebook.schedule
 
     if horizon_start is not None and horizon_end is not None:
         first_day = horizon_start
         last_day = horizon_end - timedelta(days=1)
     else:
-        first_day = sorted_incidents[0].timestamp.astimezone(timezone).date()
-        last_day = sorted_incidents[-1].timestamp.astimezone(timezone).date()
+        first_day = sorted_incidents[0].timestamp.astimezone(schedule.tzinfo).date()
+        last_day = sorted_incidents[-1].timestamp.astimezone(schedule.tzinfo).date()
 
-    scheduled_days = 0
+    on_duty_hours = 0
     current_day = first_day
 
     while current_day <= last_day:
-        if current_day.weekday() in rulebook.schedule.weekdays:
-            scheduled_days += 1
-
+        on_duty_hours += sum(
+            is_on_duty(schedule, datetime.combine(current_day, time(hour)))
+            for hour in range(24)
+        )
         current_day += timedelta(days=1)
 
-    hours_per_day = config.end_hour - config.start_hour
-
-    capacity_minutes = (
-        scheduled_days
-        * hours_per_day
-        * 60
-        * config.teams
-    )
+    capacity_minutes = on_duty_hours * 60 * config.teams
 
     utilization = (
         metrics["busy_team_minutes"] / capacity_minutes

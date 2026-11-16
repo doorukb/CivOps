@@ -261,8 +261,10 @@ def test_both_scenarios_see_the_same_calls(monkeypatch):
         assert baseline == scenario  # same calls, same duration multipliers
 
 
-# 20 teams never run out, so share handled is just schedule coverage:
-# the validation the brief promised (22%, 36%, 55%).
+# 20 teams never run out, so share handled is just schedule coverage. This
+# checks that the simulator agrees with the coverage arithmetic (22%, 36%,
+# 55%); the arrival weights were fitted to those numbers, so it is a
+# consistency check, not evidence that the model matches real call data.
 @pytest.mark.parametrize(
     "config, expected",
     [
@@ -271,7 +273,7 @@ def test_both_scenarios_see_the_same_calls(monkeypatch):
         (SimulationConfig(teams=20, end_hour=20, include_weekends=True), 0.55),
     ],
 )
-def test_twenty_teams_reproduce_brief_coverage(config, expected):
+def test_twenty_teams_agree_with_schedule_coverage(config, expected):
     result = run_comparison(config, config, replications=50)
     assert result["baseline"]["share_handled"]["mean"] == pytest.approx(expected, abs=0.02)
     assert result["baseline"]["missed_busy"]["mean"] == 0

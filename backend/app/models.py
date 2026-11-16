@@ -120,9 +120,28 @@ class AuditRecord(BaseModel):
 class AuditRequest(BaseModel):
     records: list[AuditRecord] = Field(max_length=MAX_AUDIT_RECORDS)
 
+# A shift may run past midnight: end_hour 26 means 2 AM the next day.
+MAX_END_HOUR = 26
+
+
+def check_shift_hours(start_hour: int, end_hour: int) -> None:
+    """Shared by the rulebook schedule and the What-If simulator config."""
+    if end_hour <= start_hour:
+        raise ValueError("end_hour must be greater than start_hour")
+    if end_hour > 24 and end_hour - 24 > start_hour:
+        # e.g. 0 to 26: the hours after midnight would belong to two shifts.
+        raise ValueError(
+            "a shift that runs past midnight must end before the next one starts "
+            f"(end_hour - 24 = {end_hour - 24} is later than start_hour = {start_hour})"
+        )
+
+
 class SimulationConfig(BaseModel):
     start_hour: int = Field(default=8, ge=0, le=23)
-    end_hour: int = Field(default=16, ge=1, le=24)
+    end_hour: int = Field(
+        default=16, ge=1, le=MAX_END_HOUR,
+        description="Hour the shift ends. Above 24 means the next day (26 = 2 AM).",
+    )
     teams: int = Field(default=3, ge=1, le=20)
     average_duration_minutes: int = Field(
         default=60, ge=5, le=240
@@ -132,10 +151,7 @@ class SimulationConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_schedule(self):
-        if self.end_hour <= self.start_hour:
-            raise ValueError(
-                "end_hour must be greater than start_hour"
-            )
+        check_shift_hours(self.start_hour, self.end_hour)
         return self
 
 

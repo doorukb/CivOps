@@ -21,7 +21,13 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from app.models import SAFETY_FIELDS, CallType, Destination
+from app.models import (
+    MAX_END_HOUR,
+    SAFETY_FIELDS,
+    CallType,
+    Destination,
+    check_shift_hours,
+)
 
 RULEBOOK_PATH = Path(__file__).resolve().parents[1] / "rules" / "dispatch.yaml"
 
@@ -86,7 +92,8 @@ class Schedule(_Frozen):
     timezone: str
     weekdays: tuple[int, ...]  # Monday=0 ... Sunday=6: the days a shift STARTS
     start_hour: int = Field(ge=0, le=23)
-    end_hour: int = Field(ge=1, le=24)
+    # Above 24 the shift runs past midnight: 26 means 2 AM the next day.
+    end_hour: int = Field(ge=1, le=MAX_END_HOUR)
 
     @model_validator(mode="after")
     def check(self):
@@ -98,8 +105,7 @@ class Schedule(_Frozen):
             raise ValueError("weekdays must be between 0 (Monday) and 6 (Sunday)")
         if len(set(self.weekdays)) != len(self.weekdays):
             raise ValueError("weekdays contains duplicates")
-        if self.end_hour <= self.start_hour:
-            raise ValueError("end_hour must be greater than start_hour")
+        check_shift_hours(self.start_hour, self.end_hour)
         return self
 
     @property

@@ -28,11 +28,25 @@ ENGINE_GUARD_SOURCE = "Rule engine guard: the rulebook must give exactly one ans
 
 
 def is_on_duty(schedule: Schedule, local_time: datetime) -> bool:
-    """True when `local_time` (already in the schedule's zone) is inside a shift."""
-    return (
-        local_time.weekday() in schedule.weekdays
-        and schedule.start_hour <= local_time.hour < schedule.end_hour
+    """True when `local_time` (already in the schedule's zone) is inside a shift.
+
+    `schedule.weekdays` are the days a shift STARTS. A shift whose end_hour is
+    above 24 runs past midnight, so 1 AM on Tuesday is on duty when Monday is
+    a working day and the shift ends at 26 (2 AM).
+    """
+    weekday, hour = local_time.weekday(), local_time.hour
+
+    started_today = (
+        weekday in schedule.weekdays
+        and schedule.start_hour <= hour < min(schedule.end_hour, 24)
     )
+    started_yesterday = (
+        schedule.end_hour > 24
+        and (weekday - 1) % 7 in schedule.weekdays
+        and hour < schedule.end_hour - 24
+    )
+
+    return started_today or started_yesterday
 
 
 def _safety_decision(

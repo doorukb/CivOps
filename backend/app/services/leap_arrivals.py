@@ -36,9 +36,18 @@ TIMEZONE = ZoneInfo("America/New_York")
 
 
 def coverage(weekdays, start_hour: int, end_hour: int) -> float:
-    """Share of calls arriving on `weekdays` (0=Mon) during [start_hour, end_hour)."""
-    return sum(DAY_WEIGHTS[d] for d in set(weekdays)) * sum(
-        HOUR_WEIGHTS[start_hour:end_hour]
+    """Share of calls arriving during shifts that start on `weekdays` (0=Mon)
+    and run over [start_hour, end_hour). An end_hour above 24 runs past
+    midnight (26 = 2 AM), and those hours fall on the following weekday.
+
+    Assumes hour of day and day of week are independent.
+    """
+    same_day = sum(HOUR_WEIGHTS[start_hour:min(end_hour, 24)])
+    next_day = sum(HOUR_WEIGHTS[:max(0, end_hour - 24)])
+
+    return sum(
+        DAY_WEIGHTS[day] * same_day + DAY_WEIGHTS[(day + 1) % 7] * next_day
+        for day in set(weekdays)
     )
 
 
