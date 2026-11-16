@@ -1,4 +1,4 @@
-from app.models import Incident, Destination
+from app.models import Destination, Incident
 from app.services.rule_engine import evaluate_incident
 
 
@@ -65,8 +65,6 @@ def test_weekend():
     decision = evaluate_incident(incident)
     assert decision.destination == Destination.CRESS_FOLLOWUP
 
-from copy import deepcopy
-
 from app.services.rule_engine import load_rulebook
 
 
@@ -79,10 +77,8 @@ def test_eligibility_metadata():
 
 
 def test_alternative_schedule():
-    rulebook = deepcopy(load_rulebook())
-
     # Extend the closing time from 4 PM to 8 PM
-    rulebook["schedule"]["end_hour"] = 20
+    rulebook = load_rulebook().with_changes(schedule={"end_hour": 20})
 
     incident = make_incident(
         timestamp="2026-11-16T19:30:00-05:00"

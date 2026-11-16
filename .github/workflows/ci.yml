@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, polishing]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, tests, audits)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check app scripts eval tests
+
+      # No API keys and no microphone are needed: every paid or live path is faked.
+      - name: Tests
+        run: python -m pytest -q --cov=app --cov-report=term-missing --cov-fail-under=95
+
+      - name: Evaluation case files (free checks only, no paid calls)
+        run: |
+          python -m eval.missed_escalations --check
+          python -m eval.bias_pairs --check
+          python -m eval.escalation_v2 --check
+          python -m eval.bias_pairs_v2 --check
+          python -m eval.extraction_accuracy --check
+
+      - name: Dependency audit
+        run: pip-audit -r requirements.txt
+
+  frontend:
+    name: Frontend (lint, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+      # Only what ships to the browser. Dev-tool advisories are tracked by Dependabot.
+      - name: Dependency audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high

@@ -23,29 +23,22 @@ def test_weights_sum_to_one():
     assert len(HOUR_WEIGHTS) == 24 and len(DAY_WEIGHTS) == 7
 
 
-# The brief's coverage table. coverage() cannot wrap past midnight (neither can
-# the simulator), so the 3 AM to midnight row is the longest same-day window
-# that also reaches 87%; LEAP's real schedule is checked as a direct sum below.
+# The project plan's coverage table (22 / 36 / 55 / 87%). The weights in
+# app/data/arrival_model.yaml were FITTED to these four numbers, so this is a
+# regression check that the fit still holds, not an independent validation.
 @pytest.mark.parametrize(
     "days, start, end, expected",
     [
         (WEEKDAYS, 8, 16, 0.22),
         (WEEKDAYS, 8, 20, 0.36),
         (ALL_DAYS, 8, 20, 0.55),
-        (ALL_DAYS, 3, 24, 0.87),
+        (ALL_DAYS, 9, 26, 0.87),  # LEAP's recommended 9 AM to 2 AM, every day
     ],
 )
-def test_coverage_matches_brief(days, start, end, expected):
+def test_fitted_weights_still_reproduce_the_coverage_table_they_were_fitted_to(
+    days, start, end, expected
+):
     assert coverage(days, start, end) == pytest.approx(expected, abs=0.01)
-
-
-def test_leap_9am_to_2am_every_day_covers_87_percent():
-    # The brief's fourth row: every day, 9 AM to 2 AM (hours 9-23 plus 0 and 1).
-    assert sum(HOUR_WEIGHTS[9:24]) + HOUR_WEIGHTS[0] + HOUR_WEIGHTS[1] == (
-        pytest.approx(0.87, abs=0.01)
-    )
-    # What the What-If screen can select instead: 9 AM to midnight, about 76%.
-    assert coverage(ALL_DAYS, 9, 24) == pytest.approx(0.76, abs=0.01)
 
 
 def test_generate_calls_is_seeded_sorted_and_post_screening():

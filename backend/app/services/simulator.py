@@ -1,84 +1,41 @@
 import random
+from datetime import date, datetime, time, timedelta
+
 import numpy as np
 import simpy
 
-from app.models import SimulationConfig, SimulationResult
-from copy import deepcopy
-from app.models import Incident
-from app.services.rule_engine import evaluate_incident, load_rulebook
-from app.services.leap_arrivals import duration_multiplier, generate_calls
-from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from app.models import CallType, Incident, SimulationConfig, SimulationResult
+from app.rulebook import Rulebook, load_rulebook
+from app.services.leap_arrivals import (
+    ARRIVAL_MODEL,
+    CALLS_PER_WEEK,
+    duration_multiplier,
+    generate_calls,
+)
+from app.services.rule_engine import evaluate_incident, is_on_duty
 
 
-def simulate_call(env, teams, duration, metrics):
-    # If every team is occupied, record a missed call
-    if teams.count >= teams.capacity:
-        metrics["missed_busy"] += 1
-        return
+def build_scenario_rulebook(config: SimulationConfig) -> Rulebook:
+    """The shipped rulebook with the scenario's schedule and call types.
 
-    # Otherwise, occupy a team
-    with teams.request() as request:
-        yield request
-
-        metrics["handled_calls"] += 1
-
-        # Time spent responding
-        yield env.timeout(duration)
-
-def run_simulation(
-    config: SimulationConfig,
-    call_times: list[float],
-    durations: list[float]
-) -> SimulationResult:
-
-    env = simpy.Environment()
-    teams = simpy.Resource(env, capacity=config.teams)
-
-    metrics = {
-        "handled_calls": 0,
-        "missed_busy": 0,
-        "busy_team_minutes": 0.0
+    Returns a validated copy; the shared rulebook is immutable and unchanged.
+    """
+    base = load_rulebook()
+    schedule: dict = {
+        "start_hour": config.start_hour,
+        "end_hour": config.end_hour,
     }
 
-    def arrival_process():
-        previous_time = 0.0
-
-        for arrival_time, duration in zip(call_times, durations):
-            yield env.timeout(arrival_time - previous_time)
-            previous_time = arrival_time
-
-            env.process(
-                simulate_call(env, teams, duration, metrics)
-            )
-
-    env.process(arrival_process())
-    env.run()
-
-    total_calls = len(call_times)
-
-    return SimulationResult(
-        total_calls=total_calls,
-        eligible_calls=total_calls,
-        handled_calls=metrics["handled_calls"],
-        missed_off_duty=0,
-        missed_busy=metrics["missed_busy"],
-        utilization=0.0
-    )
-
-def build_scenario_rulebook(config: SimulationConfig) -> dict:
-    rulebook = deepcopy(load_rulebook())
-
-    rulebook["schedule"]["start_hour"] = config.start_hour
-    rulebook["schedule"]["end_hour"] = config.end_hour
-
     if config.include_weekends:
-        rulebook["schedule"]["weekdays"] = list(range(7))
+        schedule["weekdays"] = tuple(range(7))
 
-    if config.include_noise_complaints:
-        rulebook["eligible_call_types"].append("noise_complaint")
+    eligible = base.eligible_call_types
 
-    return rulebook
+    if config.include_noise_complaints and CallType.NOISE_COMPLAINT not in eligible:
+        eligible = (*eligible, CallType.NOISE_COMPLAINT)
+
+    return base.with_changes(schedule=schedule, eligible_call_types=eligible)
+
 
 def simulate_incidents(
     incidents: list[Incident],
@@ -112,7 +69,7 @@ def simulate_incidents(
 
     # Sort calls by arrival time, each with its own duration multiplier
     sorted_pairs = sorted(
-        zip(incidents, duration_multipliers),
+        zip(incidents, duration_multipliers, strict=True),
         key=lambda pair: pair[0].timestamp
     )
     sorted_incidents = [incident for incident, _ in sorted_pairs]
@@ -135,18 +92,19 @@ def simulate_incidents(
 
             metrics["handled_calls"] += 1
 
-            # Calculate minutes remaining in this work shift
-            timezone = ZoneInfo(rulebook["schedule"]["timezone"])
-            local_arrival = arrival_timestamp.astimezone(timezone)
-
-            shift_end = (
-                datetime.combine(
-                    local_arrival.date(),
-                    time.min,
-                    tzinfo=timezone
-                )
-                + timedelta(hours=config.end_hour)
+            # Minutes left in the shift this call arrived in. A call in the
+            # small hours belongs to the shift that started the day before.
+            schedule = rulebook.schedule
+            local_arrival = arrival_timestamp.astimezone(schedule.tzinfo)
+            midnight = datetime.combine(
+                local_arrival.date(), time.min, tzinfo=schedule.tzinfo
             )
+            end_hour = (
+                config.end_hour
+                if local_arrival.hour >= config.start_hour
+                else config.end_hour - 24
+            )
+            shift_end = midnight + timedelta(hours=end_hour)
 
             remaining_shift_minutes = max(
                 0,
@@ -207,33 +165,30 @@ def simulate_incidents(
     env.process(arrival_process())
     env.run()
 
-    # Calculate scheduled capacity across the simulation period
-    timezone = ZoneInfo(rulebook["schedule"]["timezone"])
+    # Scheduled capacity: every on-duty team-hour inside the period. Counting
+    # hour by hour handles shifts that run past midnight (the first day's small
+    # hours can belong to a shift that started before the period, and the last
+    # shift's tail falls outside it).
+    schedule = rulebook.schedule
 
     if horizon_start is not None and horizon_end is not None:
         first_day = horizon_start
         last_day = horizon_end - timedelta(days=1)
     else:
-        first_day = sorted_incidents[0].timestamp.astimezone(timezone).date()
-        last_day = sorted_incidents[-1].timestamp.astimezone(timezone).date()
+        first_day = sorted_incidents[0].timestamp.astimezone(schedule.tzinfo).date()
+        last_day = sorted_incidents[-1].timestamp.astimezone(schedule.tzinfo).date()
 
-    scheduled_days = 0
+    on_duty_hours = 0
     current_day = first_day
 
     while current_day <= last_day:
-        if current_day.weekday() in rulebook["schedule"]["weekdays"]:
-            scheduled_days += 1
-
+        on_duty_hours += sum(
+            is_on_duty(schedule, datetime.combine(current_day, time(hour)))
+            for hour in range(24)
+        )
         current_day += timedelta(days=1)
 
-    hours_per_day = config.end_hour - config.start_hour
-
-    capacity_minutes = (
-        scheduled_days
-        * hours_per_day
-        * 60
-        * config.teams
-    )
+    capacity_minutes = on_duty_hours * 60 * config.teams
 
     utilization = (
         metrics["busy_team_minutes"] / capacity_minutes
@@ -250,10 +205,10 @@ def simulate_incidents(
     )
 
 ASSUMPTIONS = [
-    "Call arrival times are fitted to coverage totals, not copied from LEAP's tables, and volume is about 47 calls per week.",
+    f"{ARRIVAL_MODEL.timing_note} Volume is about {CALLS_PER_WEEK:g} calls per week.",
     "Every eligible on-duty call goes to CRESS, so results are a ceiling on what CRESS could take, not what dispatch sends today (public testimony says roughly half a dozen a month).",
     "There is no queue or travel time: a call that arrives when every team is busy is missed, not held.",
-    "Utilization counts only dispatch-sent calls; CRESS's direct work is not modeled.",
+    "Utilization counts only dispatch-sent calls; CRESS's direct work is not modeled. A call that starts near the end of a shift keeps its team busy afterwards, but only the minutes inside the shift count toward utilization.",
     "Each handled call counts as one police call avoided.",
     "Call length is the configured average times a random multiplier with mean about 1 and spread set by duration_cv.",
 ]
@@ -276,7 +231,7 @@ def run_comparison(
     scenario: SimulationConfig,
     replications: int = 50,
     seed: int = 42,
-    calls_per_week: float = 47,
+    calls_per_week: float = CALLS_PER_WEEK,
     horizon_weeks: int = 4,
     duration_cv: float = 0.5
 ) -> dict:
@@ -287,7 +242,9 @@ def run_comparison(
     share_handled are per horizon. share_handled is handled / eligible, and
     "difference" is scenario minus baseline within each replication.
     """
-    start = date(2026, 1, 5)  # a Monday
+    # A fixed, arbitrary Monday in winter: whole weeks, no clock change inside
+    # the longest horizon (13 weeks), and the same calls on every run.
+    start = date(2026, 1, 5)
     end = start + timedelta(weeks=horizon_weeks)
     samples = {name: {m: [] for m in METRICS} for name in ("baseline", "scenario")}
 
@@ -322,4 +279,5 @@ def run_comparison(
             for m in METRICS
         },
         "assumptions": ASSUMPTIONS,
+        "calibrated_to_leap": ARRIVAL_MODEL.calibrated_to_leap,
     }

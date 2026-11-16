@@ -17,24 +17,8 @@ def test_invalid_team_count():
     with pytest.raises(ValidationError):
         SimulationConfig(teams=0)
 
-from app.services.simulator import run_simulation
-
-
-def test_simulation_capacity():
-    config = SimulationConfig(teams=1)
-
-    result = run_simulation(
-        config=config,
-        call_times=[0, 10, 20],
-        durations=[60, 60, 60]
-    )
-
-    assert result.total_calls == 3
-    assert result.handled_calls == 1
-    assert result.missed_busy == 2
-
-from app.services.simulator import build_scenario_rulebook
 from app.services.rule_engine import load_rulebook
+from app.services.simulator import build_scenario_rulebook
 
 
 def test_scenario_rulebook():
@@ -47,12 +31,12 @@ def test_scenario_rulebook():
     scenario = build_scenario_rulebook(config)
     baseline = load_rulebook()
 
-    assert scenario["schedule"]["end_hour"] == 20
-    assert scenario["schedule"]["weekdays"] == list(range(7))
+    assert scenario.schedule.end_hour == 20
+    assert scenario.schedule.weekdays == tuple(range(7))
 
     # The original policy must remain unchanged
-    assert baseline["schedule"]["end_hour"] == 16
-    assert baseline["schedule"]["weekdays"] == [0, 1, 2, 3, 4]
+    assert baseline.schedule.end_hour == 16
+    assert baseline.schedule.weekdays == (0, 1, 2, 3, 4)
 
 from app.models import Incident
 from app.services.simulator import simulate_incidents
@@ -123,7 +107,6 @@ def test_simultaneous_arrivals():
     assert result.handled_calls == 1
     assert result.missed_busy == 2
 
-import pytest
 
 
 def test_utilization():
@@ -191,9 +174,9 @@ def test_noise_complaints_only_eligible_when_requested():
     off = build_scenario_rulebook(SimulationConfig())
     on = build_scenario_rulebook(SimulationConfig(include_noise_complaints=True))
 
-    assert "noise_complaint" not in off["eligible_call_types"]
-    assert on["eligible_call_types"][-1] == "noise_complaint"
-    assert "noise_complaint" not in load_rulebook()["eligible_call_types"]
+    assert "noise_complaint" not in off.eligible_call_types
+    assert on.eligible_call_types[-1] == "noise_complaint"
+    assert "noise_complaint" not in load_rulebook().eligible_call_types
 
 
 def test_horizon_fixes_utilization_denominator():
@@ -274,12 +257,14 @@ def test_both_scenarios_see_the_same_calls(monkeypatch):
     run_comparison(SimulationConfig(), SimulationConfig(end_hour=20), replications=5)
 
     assert len(seen) == 10
-    for baseline, scenario in zip(seen[::2], seen[1::2]):
+    for baseline, scenario in zip(seen[::2], seen[1::2], strict=True):
         assert baseline == scenario  # same calls, same duration multipliers
 
 
-# 20 teams never run out, so share handled is just schedule coverage:
-# the validation the brief promised (22%, 36%, 55%).
+# 20 teams never run out, so share handled is just schedule coverage. This
+# checks that the simulator agrees with the coverage arithmetic (22%, 36%,
+# 55%); the arrival weights were fitted to those numbers, so it is a
+# consistency check, not evidence that the model matches real call data.
 @pytest.mark.parametrize(
     "config, expected",
     [
@@ -288,15 +273,16 @@ def test_both_scenarios_see_the_same_calls(monkeypatch):
         (SimulationConfig(teams=20, end_hour=20, include_weekends=True), 0.55),
     ],
 )
-def test_twenty_teams_reproduce_brief_coverage(config, expected):
+def test_twenty_teams_agree_with_schedule_coverage(config, expected):
     result = run_comparison(config, config, replications=50)
     assert result["baseline"]["share_handled"]["mean"] == pytest.approx(expected, abs=0.02)
     assert result["baseline"]["missed_busy"]["mean"] == 0
 
 
 def _replications(n=20):
-    from app.services.leap_arrivals import duration_multiplier, generate_calls
     import random
+
+    from app.services.leap_arrivals import duration_multiplier, generate_calls
 
     start = date(2026, 1, 5)
     for seed in range(n):

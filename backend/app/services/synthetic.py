@@ -2,16 +2,14 @@ import calendar
 import random
 from datetime import datetime
 
-from app.models import AuditRecord, Destination, Incident
-from app.services.leap_arrivals import DAY_WEIGHTS, HOUR_WEIGHTS, TIMEZONE
-
-CALL_TYPES = [
-    "wellbeing_check",
-    "disturbance",
-    "suspicious",
-    "noise_complaint",
-    "other",
-]
+from app.models import SAFETY_FIELDS, AuditRecord, Destination, Incident
+from app.services.leap_arrivals import (
+    CALL_TYPE_WEIGHTS,
+    DAY_WEIGHTS,
+    HOUR_WEIGHTS,
+    NON_EMERGENCY_LINE_SHARE,
+    TIMEZONE,
+)
 
 # ---------------------------------------------------------------------------
 # ASSUMPTIONS about what dispatch "actually" did. These are deliberately
@@ -39,8 +37,6 @@ ACTUAL_MISROUTE_RATE = 0.03
 # The two are mutually exclusive; every other call has all four answers False.
 TRUE_SAFETY_RATE = 0.08
 UNKNOWN_SAFETY_RATE = 0.05
-
-SAFETY_FIELDS = ("weapon_present", "violence", "injury", "immediate_danger")
 
 
 def random_timestamp(rng: random.Random, year: int, month: int) -> datetime:
@@ -71,11 +67,13 @@ def generate_synthetic_month(
     seed: int = 42
 ) -> list[AuditRecord]:
     rng = random.Random(seed)
+    call_types, type_weights = zip(*CALL_TYPE_WEIGHTS, strict=True)
     records = []
 
     for index in range(count):
         timestamp = random_timestamp(rng, year, month)
-        call_type = rng.choice(CALL_TYPES)
+        # Same call mix as the What-If simulator (one shared arrival model).
+        call_type = rng.choices(call_types, type_weights)[0]
 
         # Draw everything for a call up front so the sequence per call
         # does not depend on which branch it takes.
@@ -83,6 +81,7 @@ def generate_synthetic_month(
         flagged_field = rng.choice(SAFETY_FIELDS)
         referral_draw = rng.random()
         misroute_draw = rng.random()
+        line = "non_emergency" if rng.random() < NON_EMERGENCY_LINE_SHARE else "911"
 
         safety = {field: False for field in SAFETY_FIELDS}
         has_true_flag = safety_draw < TRUE_SAFETY_RATE
@@ -112,6 +111,7 @@ def generate_synthetic_month(
             incident=Incident(
                 call_type=call_type,
                 timestamp=timestamp,
+                source_line=line,
                 **safety
             ),
             actual_destination=destination

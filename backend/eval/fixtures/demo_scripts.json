@@ -1,0 +1,39 @@
+{
+  "recorded": false,
+  "note": "HAND-WRITTEN ideal extraction, not model output. The real extractor has not been run on the demo scripts yet. Replace this file with: python -m eval.record_demo_fixtures --yes (3 paid calls). The offline test then regression-tests the recorded output instead.",
+  "scripts": {
+    "routine_wellbeing": {
+      "model_output": {
+        "call_type": "wellbeing_check",
+        "weapon_present": {"value": false, "evidence": "there are no weapons"},
+        "violence": {"value": false, "evidence": "nobody has been violent and nobody has threatened anyone"},
+        "injury": {"value": false, "evidence": "nobody is injured"},
+        "immediate_danger": {"value": false, "evidence": "nobody is in immediate danger"},
+        "caller_requests_cress": true,
+        "location": null
+      }
+    },
+    "incomplete_screening": {
+      "model_output": {
+        "call_type": "disturbance",
+        "weapon_present": {"value": null, "evidence": null},
+        "violence": {"value": null, "evidence": null},
+        "injury": {"value": false, "evidence": "Nobody is injured"},
+        "immediate_danger": {"value": null, "evidence": null},
+        "caller_requests_cress": null,
+        "location": null
+      }
+    },
+    "hidden_knife": {
+      "model_output": {
+        "call_type": "noise_complaint",
+        "weapon_present": {"value": true, "evidence": "he has a knife"},
+        "violence": {"value": null, "evidence": null},
+        "injury": {"value": null, "evidence": null},
+        "immediate_danger": {"value": null, "evidence": null},
+        "caller_requests_cress": null,
+        "location": null
+      }
+    }
+  }
+}

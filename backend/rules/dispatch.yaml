@@ -1,4 +1,23 @@
-version: "0.1"
+# Despatch illustrative rulebook.
+#
+# This file is the whole routing policy. The language model never reads it and
+# never chooses a destination: plain code in app/services/rule_engine.py walks
+# the stages below in order and stops at the first one that applies.
+#
+#   1. tripwire            a safety word in the raw transcript
+#   2. escalation          any screening answer is "yes"
+#   3. incomplete          any screening answer is still unknown
+#   4. context_incomplete  no call type or no call time
+#   5. rules               eligibility and CRESS operating hours
+#
+# The file is validated at load (app/rulebook.py). Stages 1-4 must send the
+# call to human_review, and a rule may only route to cress, cress_followup or
+# human_review; anything else is rejected before the server starts.
+#
+# Every "source" below says "Illustrative": these are project assumptions, not
+# an official Town of Amherst or CRESS protocol. See docs/RULEBOOK.md.
+
+version: "0.2"
 
 screening:
   safety_fields:
@@ -7,19 +26,33 @@ screening:
     - injury
     - immediate_danger
 
+  tripwire:
+    id: TRANSCRIPT-TRIPWIRE
+    destination: human_review
+    reason: "Transcript contains potential safety signals"
+    source: "Illustrative keyword screen on the raw transcript (app/services/tripwires.py)"
+
   escalation:
     id: SAFETY-ESCALATION
     destination: human_review
     reason: "Reported safety concerns"
+    source: "Illustrative safety screening: any reported weapon, violence, injury or immediate danger goes to a human dispatcher"
 
   incomplete:
     id: SCREEN-INCOMPLETE
     destination: human_review
     reason: "Safety screening is incomplete."
+    source: "Illustrative safety screening: an unanswered question is never treated as a no"
+
+  context_incomplete:
+    id: CONTEXT-INCOMPLETE
+    destination: human_review
+    reason: "Call type or timestamp is missing."
+    source: "Illustrative guard: a call without a type or a time cannot be matched to a rule"
 
 schedule:
   timezone: America/New_York
-  weekdays: [0, 1, 2, 3, 4]
+  weekdays: [0, 1, 2, 3, 4]   # Monday=0 ... Sunday=6
   start_hour: 8
   end_hour: 16
 

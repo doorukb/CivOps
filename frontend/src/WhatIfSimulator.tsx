@@ -1,21 +1,20 @@
-import { useState } from 'react'
-import { compareScenarios } from './api'
+import { useEffect, useState } from 'react'
+import { compareScenarios, fetchBaseline, fetchCoverage } from './api'
 import type {
   ComparisonMetric,
   ComparisonResult,
-  SimulationConfig,
+  CoveragePoint,
   MetricBand,
+  SimulationBaseline,
+  SimulationConfig,
 } from './api'
-
-// "Today's schedule": a fixed reference, not an input.
-const BASELINE: SimulationConfig = {
-  start_hour: 8,
-  end_hour: 16,
-  teams: 3,
-  average_duration_minutes: 60,
-  include_weekends: false,
-  include_noise_complaints: false,
-}
+import { clockLabel } from './chartData'
+import { ComparisonChart, CoverageChart } from './charts'
+import {
+  FALLBACK_BASELINE,
+  MAX_END_HOUR,
+  scenarioProblem,
+} from './simulatorLogic'
 
 const STRESS_TEST = { teams: 1, average_duration_minutes: 180 }
 
@@ -41,28 +40,63 @@ function spreadText({ mean, p10, p90 }: MetricBand, format: Format, signed = fal
   return `${sign}${shown} (${format(p10)} to ${format(p90)})`
 }
 
+function scheduleText(config: SimulationConfig): string {
+  const days = config.include_weekends ? 'every day' : 'weekdays'
+  const next = config.end_hour > 24 ? ' the next day' : ''
+  return `${days}, ${clockLabel(config.start_hour)} to ${clockLabel(config.end_hour)}${next}`
+}
+
 export default function WhatIfSimulator() {
+  // "Today's schedule" comes from the rulebook via the API, not from a copy here.
+  const [reference, setReference] = useState<SimulationBaseline | null>(null)
+  const baseline = reference?.baseline ?? FALLBACK_BASELINE
+
   const [config, setConfig] = useState<SimulationConfig>({
-    ...BASELINE,
+    ...FALLBACK_BASELINE,
     end_hour: 20,
   })
   const [result, setResult] = useState<ComparisonResult | null>(null)
+  const [coverage, setCoverage] = useState<CoveragePoint[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const valid =
-    Number.isInteger(config.start_hour) && config.start_hour >= 0 && config.start_hour <= 23 &&
-    Number.isInteger(config.end_hour) && config.end_hour > config.start_hour && config.end_hour <= 24 &&
-    Number.isInteger(config.teams) && config.teams >= 1 && config.teams <= 20 &&
-    Number.isInteger(config.average_duration_minutes) &&
-    config.average_duration_minutes >= 5 && config.average_duration_minutes <= 240
+  useEffect(() => {
+    let cancelled = false
+    fetchBaseline()
+      .then((loaded) => {
+        if (!cancelled) setReference(loaded)
+      })
+      .catch(() => {}) // keep the fallback; Run still reports a real error
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const problem = scenarioProblem(config)
+  const { start_hour: startHour, include_weekends: weekends } = config
+  const startValid = Number.isInteger(startHour) && startHour >= 0 && startHour <= 23
+
+  useEffect(() => {
+    if (!startValid) return
+    let cancelled = false
+    fetchCoverage(startHour, weekends)
+      .then((loaded) => {
+        if (!cancelled) setCoverage(loaded)
+      })
+      .catch(() => {
+        if (!cancelled) setCoverage([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [startHour, weekends, startValid])
 
   async function run(scenario: SimulationConfig) {
     setLoading(true)
     setError(null)
 
     try {
-      setResult(await compareScenarios(BASELINE, scenario))
+      setResult(await compareScenarios(baseline, scenario))
     } catch (err) {
       setResult(null)
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -71,10 +105,9 @@ export default function WhatIfSimulator() {
     }
   }
 
-  function stressTest() {
-    const stressed = { ...config, ...STRESS_TEST }
-    setConfig(stressed)
-    run(stressed)
+  function apply(next: SimulationConfig) {
+    setConfig(next)
+    void run(next)
   }
 
   const weeks = result?.horizon_weeks ?? 4
@@ -91,8 +124,27 @@ export default function WhatIfSimulator() {
 
       <p className="disclaimer">
         Illustrative scenario only. Not a forecast of actual demand. Today's
-        schedule is shown as a ceiling, not what dispatch sends today.
+        schedule ({scheduleText(baseline)}, {baseline.teams} teams) is shown
+        as a ceiling, not what dispatch sends today.
       </p>
+
+      {reference && reference.presets.length > 0 && (
+        <div className="scenario-buttons">
+          <span>Scenarios:</span>
+          {reference.presets.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className="secondary-button"
+              title={`${preset.note} Covers about ${percent(preset.schedule_coverage)} of arrivals.`}
+              onClick={() => apply({ ...baseline, ...preset.config })}
+              disabled={loading}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="form-grid">
         <label>
@@ -113,12 +165,16 @@ export default function WhatIfSimulator() {
           <input
             type="number"
             min={1}
-            max={24}
+            max={MAX_END_HOUR}
             value={config.end_hour}
             onChange={(e) =>
               setConfig({ ...config, end_hour: Number(e.target.value) })
             }
+            aria-describedby="end-hour-hint"
           />
+          <span className="hint" id="end-hour-hint">
+            Up to {MAX_END_HOUR}: 24 is midnight, 26 is 2 AM the next day.
+          </span>
         </label>
 
         <label>
@@ -164,7 +220,7 @@ export default function WhatIfSimulator() {
         <label className="checkbox-label">
           <input
             type="checkbox"
-            checked={config.include_noise_complaints}
+            checked={config.include_noise_complaints ?? false}
             onChange={(e) =>
               setConfig({
                 ...config,
@@ -180,32 +236,43 @@ export default function WhatIfSimulator() {
         <button
           className="primary-button"
           onClick={() => run(config)}
-          disabled={loading || !valid}
+          disabled={loading || !!problem}
         >
           {loading ? 'Simulating...' : 'Run Scenario'}
         </button>
 
         <button
           className="secondary-button"
-          onClick={stressTest}
-          disabled={loading || !valid}
+          onClick={() => apply({ ...config, ...STRESS_TEST })}
+          disabled={loading || !!problem}
           title="Sets 1 team and 180 minutes per call"
         >
           Stress test: 1 team, 180 min
         </button>
       </div>
 
-      {!valid && (
-        <p className="error">
-          Check the inputs: end hour must be after start hour, teams 1–20,
-          minutes per call 5–240.
+      {problem && (
+        <p className="error" role="alert">
+          {problem}
         </p>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {coverage.length > 1 && (
+        <CoverageChart
+          points={coverage}
+          todayEnd={baseline.end_hour}
+          proposedEnd={config.end_hour}
+        />
+      )}
 
       {result && change && scenario && (
         <>
-          <div className="impact-summary">
+          <div className="impact-summary" role="status" aria-live="polite">
             <strong>
               {change.mean >= 0
                 ? `+${change.mean.toFixed(1)} more`
@@ -218,23 +285,29 @@ export default function WhatIfSimulator() {
             </span>
           </div>
 
+          <ComparisonChart result={result} />
+
           <div className="table-container">
             <table>
+              <caption>
+                Today's schedule against the proposed one. Each cell is the
+                mean, with p10 to p90 in parentheses.
+              </caption>
               <thead>
                 <tr>
-                  <th></th>
-                  <th>Today's schedule (ceiling)</th>
-                  <th>Proposed</th>
-                  <th>Change</th>
+                  <th scope="col">Measure</th>
+                  <th scope="col">Today's schedule (ceiling)</th>
+                  <th scope="col">Proposed</th>
+                  <th scope="col">Change</th>
                 </tr>
               </thead>
               <tbody>
                 {ROWS.map(({ key, label, format }) => (
                   <tr key={key}>
-                    <td>
+                    <th scope="row">
                       {label}
                       {key.startsWith('missed') && ` (per ${weeks} weeks)`}
-                    </td>
+                    </th>
                     <td>{spreadText(result.baseline[key], format)}</td>
                     <td>{spreadText(result.scenario[key], format)}</td>
                     <td>
@@ -249,9 +322,6 @@ export default function WhatIfSimulator() {
               </tbody>
             </table>
           </div>
-          <p className="disclaimer">
-            Each cell is the mean, with p10 to p90 in parentheses.
-          </p>
 
           <p>
             {scenario.missed_busy.mean >= 0.5

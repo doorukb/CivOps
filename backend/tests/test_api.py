@@ -1,4 +1,6 @@
+import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
 from app.models import Incident
 
@@ -170,3 +172,49 @@ def test_extract_endpoint(monkeypatch):
     assert data["weapon_present"] is False
     assert data["violence"] is None
     assert data["evidence"]["injury"] == "nobody is injured"
+
+CLEAN_CALL = {
+    "call_type": "wellbeing_check",
+    "weapon_present": False,
+    "violence": False,
+    "injury": False,
+    "immediate_danger": False,
+}
+
+
+@pytest.mark.parametrize(
+    "timestamps, problem",
+    [
+        ([None], "timestamp is required"),
+        (["2026-11-16T10:00:00"], "must include a UTC offset"),
+        (["2026-11-16T10:00:00-05:00", "2026-11-16T10:10:00"], "incidents[1]"),
+    ],
+)
+def test_simulation_run_rejects_missing_or_naive_timestamps(timestamps, problem):
+    """These bodies used to raise inside the simulator and return HTTP 500."""
+    response = client.post(
+        "/simulation/run",
+        json={
+            "config": {},
+            "incidents": [{**CLEAN_CALL, "timestamp": t} for t in timestamps],
+        },
+    )
+
+    assert response.status_code == 422
+    assert problem in response.text
+
+
+def test_simulation_run_accepts_mixed_utc_offsets():
+    response = client.post(
+        "/simulation/run",
+        json={
+            "config": {"teams": 1},
+            "incidents": [
+                {**CLEAN_CALL, "timestamp": "2026-11-16T10:00:00-05:00"},
+                {**CLEAN_CALL, "timestamp": "2026-11-16T15:10:00+00:00"},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["missed_busy"] == 1  # 10:10 local, team still busy
