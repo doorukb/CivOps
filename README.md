@@ -1,13 +1,13 @@
-# CivOps
+# Despatch
 
-[![CI](https://github.com/doorukb/CivOps/actions/workflows/ci.yml/badge.svg)](https://github.com/doorukb/CivOps/actions/workflows/ci.yml)
+[![CI](https://github.com/doorukb/CivOps/actions/workflows/ci.yml/badge.svg?branch=polishing)](https://github.com/doorukb/CivOps/actions/workflows/ci.yml?query=branch%3Apolishing)
 
 **Decision support for routing non-emergency calls to community responders, built so that a language model can inform a dispatcher but can never be the one who decides.**
 
 Amherst, Massachusetts runs CRESS, an unarmed community-responder service meant to take calls that do not need police. Local reporting has described how few calls dispatch actually sends to it
 ([Daily Hampshire Gazette, "First look at how little Amherst's police alternative being used called troubling"](https://www.gazettenet.com/Minimal-dispatch-initiated-calls-for-CRESS-responders-raising-concerns-for-Amherst-oversight-committee-54779483);
 [Gazette, "Year-end report shows Amherst CRESS still not being dispatched"](https://www.gazettenet.com/Year-end-report-shows-Amherst-CRESS-still-not-being-dispatched-59502566)).
-Deciding in the middle of a call whether it is safe to send unarmed responders is a hard judgement to make quickly and consistently. CivOps writes an illustrative version of the routing rules down as software and uses it at three moments: **during a call**, **after a month of calls**, and **before a staffing decision**.
+Deciding in the middle of a call whether it is safe to send unarmed responders is a hard judgement to make quickly and consistently. Despatch writes an illustrative version of the routing rules down as software and uses it at three moments: **during a call**, **after a month of calls**, and **before a staffing decision**.
 
 > **Synthetic demonstration only.** This is not a 911 system and not an official Town of Amherst or CRESS tool. It has no affiliation with either. The rulebook is illustrative, all data is synthetic, and a human reviews every recommendation. See [Responsible use](docs/RESPONSIBLE_USE.md).
 
@@ -71,7 +71,7 @@ flowchart LR
 
     RE --> AUD["Monthly Audit<br/>replay"]
     RE --> SIM["What-If Simulator<br/>SimPy, Monte Carlo"]
-    ARR["Arrival model<br/>sourced YAML"] --> AUD
+    ARR["Arrival model<br/>fitted YAML"] --> AUD
     ARR --> SIM
 ```
 
