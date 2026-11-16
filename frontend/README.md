@@ -1,4 +1,4 @@
-# CivOps console (frontend)
+# Despatch console (frontend)
 
 React 19 + TypeScript + Vite. Three screens, all in `src/`:
 

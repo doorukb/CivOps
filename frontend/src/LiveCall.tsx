@@ -490,7 +490,7 @@ export default function LiveCall() {
       <h3>Live Dispatch Assistant</h3>
 
       <p>
-        Evaluate a fictional incident against the CivOps
+        Evaluate a fictional incident against the Despatch
         illustrative routing rules.
       </p>
 

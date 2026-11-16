@@ -53,7 +53,7 @@ After a run, commit the results file as it is, then update
 
 Three things to know before running:
 
-- **The model is whatever `CIVOPS_EXTRACTION_MODEL` says** (default
+- **The model is whatever `DESPATCH_EXTRACTION_MODEL` says** (default
   `claude-haiku-4-5`, the model v1 used). Results from different models are
   not comparable; the `meta` block records which one ran.
 - **The prompt has changed since v1** (the transcript is now delimited, and a

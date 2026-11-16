@@ -47,8 +47,8 @@ The console shows a notice and will not start until you tick a consent box.
 | Microphone audio | Deepgram, for speech-to-text | Only while a live call is running, and only if `DEEPGRAM_API_KEY` is set |
 | Transcript text | Anthropic (Claude), for fact extraction | Only when extraction runs, and only if `ANTHROPIC_API_KEY` is set |
 | Transcript text | Your browser, over a localhost WebSocket | While a call is running |
-| Decisions and reviews | A local SQLite file, `backend/data/civops.db` | When a dispatcher confirms or overrides |
-| Transcript text and evidence quotes | The same SQLite file | **Scripted calls only**, unless `CIVOPS_STORE_LIVE_TRANSCRIPTS=1` |
+| Decisions and reviews | A local SQLite file, `backend/data/despatch.db` | When a dispatcher confirms or overrides |
+| Transcript text and evidence quotes | The same SQLite file | **Scripted calls only**, unless `DESPATCH_STORE_LIVE_TRANSCRIPTS=1` |
 
 Nothing else leaves the machine. The server logs counts and error types, never
 what was said. Both providers process what they receive under their own terms;

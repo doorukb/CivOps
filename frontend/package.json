@@ -1,5 +1,5 @@
 {
-  "name": "civops-frontend",
+  "name": "despatch-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -38,5 +38,5 @@
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
   },
-  "description": "CivOps console: Live Call, Monthly Audit and What-If Simulator (synthetic demonstration)"
+  "description": "Despatch console: Live Call, Monthly Audit and What-If Simulator (synthetic demonstration)"
 }

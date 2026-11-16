@@ -91,7 +91,7 @@ started), `call_id`.
 
 ## The call log
 
-`backend/data/civops.db` (SQLite, schema versioned with `PRAGMA user_version`).
+`backend/data/despatch.db` (SQLite, schema versioned with `PRAGMA user_version`).
 
 | Table | Holds |
 |-|-|

@@ -11,7 +11,7 @@ fails with a 502 and you fill the answers in by hand (step 2b).
 ## 1. The problem (20 seconds)
 
 > A dispatcher has seconds to decide whether a call is safe for unarmed
-> community responders. CivOps writes the routing rules down as software. A
+> community responders. Despatch writes the routing rules down as software. A
 > language model reads the transcript; plain rules make the recommendation; a
 > person decides.
 

@@ -7,7 +7,7 @@ Two ways to run it:
   leave the process.
 * Standalone: `python -m scripts.live_microphone` posts events to a running
   backend over HTTP. That endpoint is off unless both sides share
-  CIVOPS_EVENT_TOKEN, and the target must be a loopback address.
+  DESPATCH_EVENT_TOKEN, and the target must be a loopback address.
 
 Privacy: this module never logs or prints what was said. It logs counts only.
 Audio goes to Deepgram for transcription; see docs/RESPONSIBLE_USE.md.
@@ -55,19 +55,19 @@ def validated_api_url(url: str) -> str:
     """Only plain HTTP(S) to this machine. Rejects file:, ftp: and remote hosts."""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https"):
-        raise ValueError("CIVOPS_API_URL must start with http:// or https://")
+        raise ValueError("DESPATCH_API_URL must start with http:// or https://")
     if parts.hostname not in LOOPBACK_HOSTS:
-        raise ValueError("CIVOPS_API_URL must point at localhost; transcripts stay on this machine")
+        raise ValueError("DESPATCH_API_URL must point at localhost; transcripts stay on this machine")
     return url.rstrip("/")
 
 
 def http_publisher() -> Publish:
     """Publisher for standalone mode: POST each event to a local backend."""
-    api_url = validated_api_url(os.environ.get("CIVOPS_API_URL", "http://127.0.0.1:8000"))
-    token = os.environ.get("CIVOPS_EVENT_TOKEN", "")
+    api_url = validated_api_url(os.environ.get("DESPATCH_API_URL", "http://127.0.0.1:8000"))
+    token = os.environ.get("DESPATCH_EVENT_TOKEN", "")
     if not token:
         raise ValueError(
-            "Standalone mode needs CIVOPS_EVENT_TOKEN set to the same value "
+            "Standalone mode needs DESPATCH_EVENT_TOKEN set to the same value "
             "for the backend and this script."
         )
 
@@ -75,7 +75,7 @@ def http_publisher() -> Publish:
         request = Request(  # noqa: S310 - scheme and host validated above
             f"{api_url}/transcript/event",
             data=event.model_dump_json().encode("utf-8"),
-            headers={"Content-Type": "application/json", "X-CivOps-Token": token},
+            headers={"Content-Type": "application/json", "X-Despatch-Token": token},
             method="POST",
         )
         with urlopen(request, timeout=2) as response:  # noqa: S310

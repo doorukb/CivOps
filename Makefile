@@ -1,4 +1,4 @@
-# CivOps: one-command tasks. Run `make help` for the list.
+# Despatch: one-command tasks. Run `make help` for the list.
 # Works on macOS and Linux. On Windows use the commands in the README.
 
 PY := backend/.venv/bin/python

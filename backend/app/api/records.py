@@ -117,7 +117,7 @@ def export_reviews():
     return Response(
         content=get_store().reviews_csv(),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="civops-reviews.csv"'},
+        headers={"Content-Disposition": 'attachment; filename="despatch-reviews.csv"'},
     )
 
 
@@ -130,7 +130,7 @@ def list_calls(limit: int = Query(50, ge=1, le=500)):
 @router.get("/calls/{call_id}")
 def get_call(call_id: str):
     """One call with its stored transcript (scripted calls only, unless
-    CIVOPS_STORE_LIVE_TRANSCRIPTS=1), decisions and reviews."""
+    DESPATCH_STORE_LIVE_TRANSCRIPTS=1), decisions and reviews."""
     call = get_store().call(call_id)
     if call is None:
         raise HTTPException(status_code=404, detail="Unknown call")

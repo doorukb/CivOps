@@ -1,6 +1,6 @@
 """SQLite log of calls, transcript segments, decisions and dispatcher reviews.
 
-Standard-library sqlite3, one file (backend/data/civops.db, gitignored). The
+Standard-library sqlite3, one file (backend/data/despatch.db, gitignored). The
 point of the log is accountability: every recommendation a dispatcher acts on
 is stored with the rule that produced it, and every override records what the
 dispatcher chose instead and why.
@@ -10,7 +10,7 @@ Privacy posture (this is a synthetic demonstration, see docs/RESPONSIBLE_USE.md)
 * Transcript text, and the evidence quotes cut from it, are stored only for
   scripted calls, which are fictional by construction.
 * For live-microphone and typed transcripts the log keeps the decision and the
-  true/false/unknown answers but no words, unless CIVOPS_STORE_LIVE_TRANSCRIPTS=1.
+  true/false/unknown answers but no words, unless DESPATCH_STORE_LIVE_TRANSCRIPTS=1.
 """
 
 import csv
@@ -24,7 +24,7 @@ from pathlib import Path
 
 from app.models import Decision, Incident
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "civops.db"
+DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "despatch.db"
 
 SCHEMA_VERSION = 1
 
@@ -87,14 +87,14 @@ REVIEW_COLUMNS = (
 
 
 def db_path() -> Path:
-    return Path(os.environ.get("CIVOPS_DB_PATH") or DEFAULT_DB_PATH)
+    return Path(os.environ.get("DESPATCH_DB_PATH") or DEFAULT_DB_PATH)
 
 
 def stores_words(source: str) -> bool:
     """Whether transcript text and evidence quotes may be written for this call."""
     if source.startswith("script:"):
         return True  # scripted calls are fictional by construction
-    return os.environ.get("CIVOPS_STORE_LIVE_TRANSCRIPTS", "") == "1"
+    return os.environ.get("DESPATCH_STORE_LIVE_TRANSCRIPTS", "") == "1"
 
 
 def _now() -> str:

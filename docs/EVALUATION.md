@@ -163,7 +163,7 @@ run, commit the results file unchanged and update this page from it.
   evaluation measures that noise instead of assuming it away.
 - **One model, one prompt.** Results belong to the model and prompt recorded
   in their `meta` block. The default model is still `claude-haiku-4-5`, the
-  one v1 used; changing `CIVOPS_EXTRACTION_MODEL` means re-running before
+  one v1 used; changing `DESPATCH_EXTRACTION_MODEL` means re-running before
   quoting any number.
 - **v1 and v2 measure different pipelines.** v2 runs through the delimited
   prompt and the hedge check; v1 did not.

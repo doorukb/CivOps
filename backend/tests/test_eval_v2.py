@@ -239,7 +239,7 @@ def test_hedge_check_rescues_every_negation_trap_in_the_gold_set():
 # --- provenance and spend guards ---------------------------------------------
 
 def test_every_results_file_records_who_produced_it(monkeypatch):
-    monkeypatch.setenv("CIVOPS_EXTRACTION_MODEL", "claude-haiku-5-5")
+    monkeypatch.setenv("DESPATCH_EXTRACTION_MODEL", "claude-haiku-5-5")
 
     meta = provenance("escalation_v2", 70)
 

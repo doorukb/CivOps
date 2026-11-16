@@ -16,8 +16,8 @@ def isolated_call_log(tmp_path, monkeypatch):
         opened.append(self)
 
     monkeypatch.setattr(Store, "__init__", tracking_init)
-    monkeypatch.setenv("CIVOPS_DB_PATH", str(tmp_path / "civops.db"))
-    monkeypatch.delenv("CIVOPS_STORE_LIVE_TRANSCRIPTS", raising=False)
+    monkeypatch.setenv("DESPATCH_DB_PATH", str(tmp_path / "despatch.db"))
+    monkeypatch.delenv("DESPATCH_STORE_LIVE_TRANSCRIPTS", raising=False)
 
     yield
 

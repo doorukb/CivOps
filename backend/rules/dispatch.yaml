@@ -1,4 +1,4 @@
-# CivOps illustrative rulebook.
+# Despatch illustrative rulebook.
 #
 # This file is the whole routing policy. The language model never reads it and
 # never chooses a destination: plain code in app/services/rule_engine.py walks

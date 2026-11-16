@@ -27,7 +27,7 @@ function App() {
 
       <aside className="sidebar">
         <div className="brand">
-          <h1>CivOps</h1>
+          <h1>Despatch</h1>
           <p>Civic Response Intelligence</p>
         </div>
 
@@ -52,7 +52,7 @@ function App() {
 
       <main className="main-content" id="main">
         <header className="topbar">
-          <span>CIVOPS / OPERATIONS</span>
+          <span>DESPATCH / OPERATIONS</span>
           <span className="status">● Prototype Environment</span>
         </header>
 

@@ -228,12 +228,12 @@ def test_live_microphone_words_are_not_stored_by_default():
     assert call["decisions"][0]["incident"]["injury"] is False
     assert call["decisions"][0]["incident"]["evidence"] == {}
     # Nothing that was said reached the disk (the WAL file included).
-    on_disk = b"".join(f.read_bytes() for f in store.path.parent.glob("civops.db*"))
+    on_disk = b"".join(f.read_bytes() for f in store.path.parent.glob("despatch.db*"))
     assert b"Elm Street" not in on_disk and b"wellbeing_check" in on_disk
 
 
 def test_live_transcripts_are_stored_only_with_the_explicit_flag(monkeypatch):
-    monkeypatch.setenv("CIVOPS_STORE_LIVE_TRANSCRIPTS", "1")
+    monkeypatch.setenv("DESPATCH_STORE_LIVE_TRANSCRIPTS", "1")
 
     store = microphone_session()
 

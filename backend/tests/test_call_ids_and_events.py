@@ -88,7 +88,7 @@ def test_start_call_passes_the_call_id_to_the_worker(monkeypatch):
 # --- /transcript/event is off unless a shared token is configured ------------
 
 def test_event_injection_is_disabled_by_default(monkeypatch):
-    monkeypatch.delenv("CIVOPS_EVENT_TOKEN", raising=False)
+    monkeypatch.delenv("DESPATCH_EVENT_TOKEN", raising=False)
 
     response = TestClient(app).post("/transcript/event", json=EVENT)
 
@@ -96,9 +96,9 @@ def test_event_injection_is_disabled_by_default(monkeypatch):
     assert response.json()["detail"] == "Event injection is disabled"
 
 
-@pytest.mark.parametrize("headers", [{}, {"X-CivOps-Token": "wrong"}, {"X-CivOps-Token": ""}])
+@pytest.mark.parametrize("headers", [{}, {"X-Despatch-Token": "wrong"}, {"X-Despatch-Token": ""}])
 def test_event_injection_needs_the_right_token(monkeypatch, headers):
-    monkeypatch.setenv("CIVOPS_EVENT_TOKEN", "s3cret-token")
+    monkeypatch.setenv("DESPATCH_EVENT_TOKEN", "s3cret-token")
 
     response = TestClient(app).post("/transcript/event", json=EVENT, headers=headers)
 
@@ -106,14 +106,14 @@ def test_event_injection_needs_the_right_token(monkeypatch, headers):
 
 
 def test_event_injection_with_the_token_reaches_the_page(monkeypatch):
-    monkeypatch.setenv("CIVOPS_EVENT_TOKEN", "s3cret-token")
+    monkeypatch.setenv("DESPATCH_EVENT_TOKEN", "s3cret-token")
 
     with TestClient(app) as client:
         with client.websocket_connect("/ws/transcript") as ws:
             response = client.post(
                 "/transcript/event",
                 json={**EVENT, "call_id": "standalone-01"},
-                headers={"X-CivOps-Token": "s3cret-token"},
+                headers={"X-Despatch-Token": "s3cret-token"},
             )
             received = ws.receive_json()
 

@@ -111,7 +111,7 @@ class LocalRequestsOnly:
 
 
 app = FastAPI(
-    title="CivOps API",
+    title="Despatch API",
     version="1.0.0",
     summary="Synthetic demonstration of rule-based dispatch decision support.",
     description=(
@@ -131,7 +131,7 @@ app.include_router(records_router)
 @app.get("/")
 def root():
     return {
-        "message": "CivOps backend is running!",
+        "message": "Despatch backend is running!",
         "notice": "Synthetic demonstration only. Not a 911 system.",
         "docs": "/docs",
     }
@@ -247,19 +247,19 @@ async def publish_event(event: TranscriptEvent) -> int:
 
 
 def event_token() -> str:
-    return os.environ.get("CIVOPS_EVENT_TOKEN", "")
+    return os.environ.get("DESPATCH_EVENT_TOKEN", "")
 
 
 @app.post("/transcript/event")
 async def publish_transcript_event(
     event: TranscriptEvent,
-    x_civops_token: str | None = Header(default=None),
+    x_despatch_token: str | None = Header(default=None),
 ):
     """Inject a transcript event from outside the process.
 
     Only for the standalone microphone script. Disabled unless the backend was
-    started with CIVOPS_EVENT_TOKEN, and the caller must send the same value in
-    X-CivOps-Token. The in-process microphone and the scripted calls never use
+    started with DESPATCH_EVENT_TOKEN, and the caller must send the same value in
+    X-Despatch-Token. The in-process microphone and the scripted calls never use
     this endpoint.
     """
     expected = event_token()
@@ -267,7 +267,7 @@ async def publish_transcript_event(
     if not expected:
         raise HTTPException(status_code=403, detail="Event injection is disabled")
 
-    if not hmac.compare_digest((x_civops_token or "").encode(), expected.encode()):
+    if not hmac.compare_digest((x_despatch_token or "").encode(), expected.encode()):
         raise HTTPException(status_code=403, detail="Invalid event token")
 
     return {"delivered_to": await broadcast_event(event)}

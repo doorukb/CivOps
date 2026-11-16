@@ -92,7 +92,7 @@ export default function MonthlyAudit() {
     <div className="panel">
       <h3>Monthly Dispatch Review</h3>
       <p>
-        Replay a month of dispatch records through the CivOps rulebook and
+        Replay a month of dispatch records through the Despatch rulebook and
         sort them into the four groups a monthly review looks at.
       </p>
 
@@ -243,7 +243,7 @@ export default function MonthlyAudit() {
               className="secondary-button"
               onClick={() =>
                 download(
-                  `civops-audit${group ? `-${group}` : ''}.csv`,
+                  `despatch-audit${group ? `-${group}` : ''}.csv`,
                   toCsv(records)
                 )
               }

@@ -335,7 +335,7 @@ def test_transport_errors_still_raise(monkeypatch):
 # --- Model selection and provenance (E-04) -----------------------------------
 
 def test_model_defaults_to_the_documented_constant(monkeypatch):
-    monkeypatch.delenv("CIVOPS_EXTRACTION_MODEL", raising=False)
+    monkeypatch.delenv("DESPATCH_EXTRACTION_MODEL", raising=False)
     incident, calls = fake_extract(monkeypatch)
 
     assert calls[0]["model"] == extractor.DEFAULT_EXTRACTION_MODEL == "claude-haiku-4-5"
@@ -343,7 +343,7 @@ def test_model_defaults_to_the_documented_constant(monkeypatch):
 
 
 def test_model_is_a_one_line_env_change(monkeypatch):
-    monkeypatch.setenv("CIVOPS_EXTRACTION_MODEL", "claude-haiku-5-5")
+    monkeypatch.setenv("DESPATCH_EXTRACTION_MODEL", "claude-haiku-5-5")
     incident, calls = fake_extract(monkeypatch)
 
     assert calls[0]["model"] == "claude-haiku-5-5"

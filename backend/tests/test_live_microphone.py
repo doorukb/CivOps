@@ -217,15 +217,15 @@ def test_loopback_api_urls_are_accepted(url):
 
 
 def test_standalone_mode_refuses_to_run_without_a_token(monkeypatch):
-    monkeypatch.delenv("CIVOPS_EVENT_TOKEN", raising=False)
+    monkeypatch.delenv("DESPATCH_EVENT_TOKEN", raising=False)
 
-    with pytest.raises(ValueError, match="CIVOPS_EVENT_TOKEN"):
+    with pytest.raises(ValueError, match="DESPATCH_EVENT_TOKEN"):
         mic.http_publisher()
 
 
 def test_standalone_publisher_sends_the_token(monkeypatch):
-    monkeypatch.setenv("CIVOPS_EVENT_TOKEN", "s3cret-token")
-    monkeypatch.setenv("CIVOPS_API_URL", "http://127.0.0.1:8000")
+    monkeypatch.setenv("DESPATCH_EVENT_TOKEN", "s3cret-token")
+    monkeypatch.setenv("DESPATCH_API_URL", "http://127.0.0.1:8000")
     requests = []
 
     class Response:
@@ -243,4 +243,4 @@ def test_standalone_publisher_sends_the_token(monkeypatch):
     mic.http_publisher()(TranscriptEvent(speaker="unknown", text="hi", is_final=True, t=0.0))
 
     assert requests[0].full_url == "http://127.0.0.1:8000/transcript/event"
-    assert requests[0].get_header("X-civops-token") == "s3cret-token"
+    assert requests[0].get_header("X-despatch-token") == "s3cret-token"

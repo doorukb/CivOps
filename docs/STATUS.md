@@ -5,7 +5,7 @@ is next. Numbers here come from running the commands shown.
 
 ## Scope
 
-CivOps is a decision-support prototype for routing non-emergency calls to a
+Despatch is a decision-support prototype for routing non-emergency calls to a
 community-responder service, written at HackUMass XIV and finished afterwards.
 The original plan had three tiers:
 
@@ -36,7 +36,7 @@ The original plan had three tiers:
 
 **Extraction**
 - One Claude call per transcript, returning structured output with an evidence
-  quote per screening answer. The model is set by `CIVOPS_EXTRACTION_MODEL`.
+  quote per screening answer. The model is set by `DESPATCH_EXTRACTION_MODEL`.
 - Deterministic post-checks: quote must be in the transcript; hedged denials
   are reset to unknown; malformed output counts as unknown.
 

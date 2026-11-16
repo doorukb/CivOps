@@ -33,7 +33,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# The one place the model is named. Override with CIVOPS_EXTRACTION_MODEL.
+# The one place the model is named. Override with DESPATCH_EXTRACTION_MODEL.
 # Results in backend/eval/results/ record which model produced them; if you
 # change the model, re-run the evaluations before quoting their numbers.
 DEFAULT_EXTRACTION_MODEL = "claude-haiku-4-5"
@@ -42,7 +42,7 @@ MAX_LOCATION_CHARS = 200
 
 
 def extraction_model() -> str:
-    return os.environ.get("CIVOPS_EXTRACTION_MODEL", "").strip() or DEFAULT_EXTRACTION_MODEL
+    return os.environ.get("DESPATCH_EXTRACTION_MODEL", "").strip() or DEFAULT_EXTRACTION_MODEL
 
 
 SYSTEM_PROMPT = (
