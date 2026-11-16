@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field, field_validator
 
 from app.models import (
+    MAX_END_HOUR,
     MAX_SIMULATION_INCIDENTS,
     Incident,
     SimulationConfig,
@@ -103,6 +104,30 @@ def simulation_baseline():
                     update={"start_hour": 9, "end_hour": 26, "include_weekends": True}
                 ),
             ),
+        ],
+    }
+
+
+@router.get("/coverage")
+def schedule_coverage(
+    start_hour: int = Query(8, ge=0, le=23),
+    include_weekends: bool = False,
+):
+    """Share of call arrivals inside the schedule for every possible end hour.
+
+    Pure arithmetic on the arrival model (no simulation, no team limits): it
+    shows what each extra hour of coverage is worth before staffing is considered.
+    """
+    days = range(7) if include_weekends else load_rulebook().schedule.weekdays
+    last = min(MAX_END_HOUR, start_hour + 24)
+
+    return {
+        "start_hour": start_hour,
+        "include_weekends": include_weekends,
+        "calibrated_to_leap": ARRIVAL_MODEL.calibrated_to_leap,
+        "points": [
+            {"end_hour": end, "coverage": coverage(days, start_hour, end)}
+            for end in range(start_hour + 1, last + 1)
         ],
     }
 

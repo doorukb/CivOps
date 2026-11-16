@@ -181,3 +181,21 @@ def test_compare_endpoint_accepts_the_leap_schedule_and_rejects_27():
 
     bad = client.post("/simulation/compare", json={"scenario": {**leap, "end_hour": 27}})
     assert bad.status_code == 422
+
+
+def test_coverage_endpoint_lists_every_end_hour_up_to_2am():
+    client = TestClient(app)
+
+    body = client.get("/simulation/coverage?start_hour=9&include_weekends=true").json()
+    by_end = {p["end_hour"]: p["coverage"] for p in body["points"]}
+
+    assert list(by_end) == list(range(10, 27))
+    assert by_end[26] == pytest.approx(0.87, abs=0.01)
+    assert by_end[24] == pytest.approx(0.76, abs=0.01)
+    assert all(a <= b for a, b in zip(by_end.values(), list(by_end.values())[1:], strict=False))
+    assert body["calibrated_to_leap"] is False
+
+    # A shift cannot be longer than a day, and 2 AM is the latest end.
+    early = client.get("/simulation/coverage?start_hour=1").json()["points"]
+    assert early[-1]["end_hour"] == 25
+    assert client.get("/simulation/coverage?start_hour=24").status_code == 422
