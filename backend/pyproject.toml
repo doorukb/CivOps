@@ -3,6 +3,8 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# A warning is a failure, so the suite stays quiet and leaks are caught early.
+filterwarnings = ["error"]
 
 [tool.ruff]
 target-version = "py313"

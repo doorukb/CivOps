@@ -4,6 +4,7 @@ import csv
 import io
 import sqlite3
 import threading
+from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
@@ -287,14 +288,14 @@ def test_schema_is_versioned_and_reopening_keeps_the_data(tmp_path):
     reopened = Store(path)
 
     assert reopened.call("call-0001")["segments"][0]["text"] == "hello"
-    with sqlite3.connect(path) as raw:
+    with closing(sqlite3.connect(path)) as raw:
         assert raw.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def test_newer_schema_is_refused_instead_of_being_corrupted(tmp_path):
     path = tmp_path / "log.db"
     Store(path).close()
-    with sqlite3.connect(path) as raw:
+    with closing(sqlite3.connect(path)) as raw:
         raw.execute(f"PRAGMA user_version = {SCHEMA_VERSION + 1}")
 
     with pytest.raises(RuntimeError, match="schema version"):

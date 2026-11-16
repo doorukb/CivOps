@@ -117,9 +117,13 @@ class Store:
         self._lock = threading.RLock()
         self._db = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None)
         self._db.row_factory = sqlite3.Row
-        self._db.execute("PRAGMA foreign_keys = ON")
-        self._db.execute("PRAGMA journal_mode = WAL")
-        self._migrate()
+        try:
+            self._db.execute("PRAGMA foreign_keys = ON")
+            self._db.execute("PRAGMA journal_mode = WAL")
+            self._migrate()
+        except Exception:
+            self._db.close()  # do not leak the handle if the file is unusable
+            raise
 
     def _migrate(self) -> None:
         with self._lock:
