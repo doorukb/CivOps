@@ -1,0 +1,568 @@
+# Extraction-accuracy gold set: 40 short synthetic calls with hand-written labels.
+#
+# Every transcript is fictional (synthetic: true).
+#
+# PRE-REGISTRATION. Cases and labels were written and committed before any
+# paid run. Do not edit a case or a label after results exist; start a v2 file.
+# If you believe a label is wrong, say so in docs/EVALUATION.md and report
+# results with and without that case. Do not quietly fix it.
+#
+# What is scored. The output of the whole extraction pipeline (the model, then
+# the evidence check, then the hedge check), because that is what the rulebook
+# receives. Fields: call_type, the four screening answers, caller_requests_cress.
+#
+# Labelling rules (each label was written by hand against these rules):
+#   true   the caller states it plainly.
+#   false  the caller denies it plainly, with no hedge.
+#   null   the question was not asked, was not answered, was answered with a
+#          hedge ("I don't think so", "not that I know of", "I haven't seen
+#          any"), or only the dispatcher said the words.
+#   A dispatcher's question or assumption is never evidence of anything.
+#
+# call_type may be a list when the prompt's definitions fit more than one label
+# (an injured person is both "a person's condition" and arguably "other");
+# any label in the list counts as correct.
+#
+# call_type follows the definitions in the extractor prompt:
+#   wellbeing_check  concern about a person's welfare or condition
+#   disturbance      arguments, confrontations, disputes or disruptive behaviour
+#   suspicious       concerning or unusual activity without a described confrontation
+#   noise_complaint  excessive noise without a described interpersonal confrontation
+#   other            none of the above
+#
+# Categories:
+#   plain        every question asked and plainly denied
+#   hedge        one answer is a hedged denial (the negation trap)
+#   question     the dispatcher says the scary words, the caller does not answer
+#   positive     the caller plainly reports a concern
+#   unlabelled   no speaker labels (how live-microphone text arrives)
+#   partial      only some questions are asked
+#   request      the caller asks for, refuses, or merely mentions community responders
+#
+# Scenarios are written so that only the labelled answers are in play. A case
+# where an unlabelled field is arguably true would make the gold arguable.
+
+synthetic: true
+version: 1
+preregistered: "2026-11-16"
+
+cases:
+  # ---------------------------------------------------------------- plain
+  - id: plain_wellbeing_request
+    category: plain
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My uncle lives alone and he has not answered his phone since Sunday."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent and nobody has threatened anyone."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+      - [caller, "Could you send the community responders to check on him?"]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: true}
+
+  - id: plain_disturbance
+    category: plain
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "Two men are arguing outside the hardware store about a parking space."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent and nobody has threatened anyone. It is only shouting."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: disturbance, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: plain_suspicious
+    category: plain
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "Someone has been walking around the back of the closed bakery and looking in through the windows."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: suspicious, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: plain_noise
+    category: plain
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "The house behind mine has had music blasting from the backyard since nine tonight."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: noise_complaint, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: plain_other
+    category: plain
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "I found a set of keys and a phone on a bench at the bus station and I want to hand them in."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: other, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: plain_wellbeing_no_police
+    category: plain
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My brother has been sitting in his car in our driveway for three hours and will not come inside."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent and nobody has threatened anyone."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+      - [caller, "Please do not send police. Uniforms frighten him."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: true}
+
+  # ---------------------------------------------------------------- hedge
+  - id: hedge_havent_seen_weapons
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "A man is standing in the alley behind my building and staring up at the windows."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "I haven't seen any weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: suspicious, weapon_present: null, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: hedge_not_that_i_know
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My neighbor has been pacing in her yard all afternoon and talking to herself."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "Not that I know of."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: wellbeing_check, weapon_present: null, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: hedge_dont_think_hurt
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "Two roommates upstairs are arguing loudly about money."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "I don't think anyone is hurt."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: disturbance, weapon_present: false, violence: false, injury: null, immediate_danger: false, caller_requests_cress: null}
+
+  - id: hedge_probably_not
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "There is a group of people having a heated argument in the park by the fountain."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "Probably not, I only just got here."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: disturbance, weapon_present: false, violence: null, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: hedge_not_sure_danger
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "The lights have been off at my elderly neighbor's house for two nights and her car has not moved."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "I'm not sure, I can't see inside."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: hedge_cant_tell_injury
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "A man is lying on the grass in the park next to his bicycle. He is awake and looking at his phone."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "I can't tell from here."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: null, immediate_danger: false, caller_requests_cress: null}
+
+  - id: hedge_maybe_weapon
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "Someone is sitting in a parked car outside the school and has been there since the morning."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "Maybe not, his hands were in his pockets the whole time."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: suspicious, weapon_present: null, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: hedge_as_far_as_i_know
+    category: hedge
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "The family in the next apartment has been shouting at each other since dinner time."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "As far as I know, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: disturbance, weapon_present: false, violence: null, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  # ---------------------------------------------------------------- question
+  - id: question_knife_no_answer
+    category: question
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My downstairs neighbor is banging on the ceiling and yelling up at me."]
+      - [dispatcher, "Does he have a knife or a gun?"]
+      - [caller, "Hold on, someone is knocking at my door."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent and nobody has threatened anyone."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+    gold: {call_type: disturbance, weapon_present: null, violence: false, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: question_bleeding_no_answer
+    category: question
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "There is a party next door and the bass is shaking my walls."]
+      - [dispatcher, "Is anyone bleeding or unconscious?"]
+      - [caller, "What? Sorry, the music is too loud, I did not catch that."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+    gold: {call_type: noise_complaint, weapon_present: false, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  - id: question_all_four_one_answer
+    category: question
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "A person I do not know is sitting on my neighbor's front steps and my neighbor is away."]
+      - [dispatcher, "I need to ask: are there any weapons, has anyone been violent, is anyone injured, and is anyone in immediate danger?"]
+      - [caller, "No weapons."]
+    gold: {call_type: suspicious, weapon_present: false, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  - id: question_dispatcher_assumes
+    category: question
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "A man has been standing in my neighbor's yard for an hour looking at the house."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "So nobody is injured, correct?"]
+      - [caller, "He is just standing there by the fence."]
+    gold: {call_type: suspicious, weapon_present: false, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  - id: question_call_drops
+    category: question
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "I want someone to check on my friend, she has not been to work in a week."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "Can you repeat that?"]
+      - [dispatcher, "Is anyone in immediate danger, or is anyone injured?"]
+      - [caller, "Hello? I think the line is cutting out."]
+    gold: {call_type: wellbeing_check, weapon_present: null, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  # ---------------------------------------------------------------- positive
+  - id: positive_knife
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "I am worried about my neighbor. He is standing on his porch crying."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "Yes, he is holding a kitchen knife."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent and nobody has threatened anyone."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+    gold: {call_type: wellbeing_check, weapon_present: true, violence: false, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: positive_shoved
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "A couple is arguing on the sidewalk in front of my house."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "Yes, he shoved her into the fence twice."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+    gold: {call_type: disturbance, weapon_present: false, violence: true, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: positive_cut_arm
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My neighbor was trimming her hedge and I heard her cry out."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "Yes, her arm is cut open and she is bleeding a lot."]
+    gold: {call_type: [wellbeing_check, other], weapon_present: false, violence: false, injury: true, immediate_danger: null, caller_requests_cress: null}
+
+  - id: positive_in_road
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "There is a confused older man out on College Street."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "Yes, he is standing in the middle of the road and cars are swerving around him."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: true, caller_requests_cress: null}
+
+  - id: positive_ladder_fall
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My brother was cleaning the gutters at our house."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "Yes, he fell off the ladder. His ankle is swollen and he cannot stand on it."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, he is sitting on the grass. Nobody is in immediate danger."]
+    gold: {call_type: [wellbeing_check, other], weapon_present: false, violence: false, injury: true, immediate_danger: false, caller_requests_cress: null}
+
+  - id: positive_threat_fire
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My neighbor and her landlord are having an argument in the hallway."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "Yes, he told her he would burn her apartment down if she does not move out."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+    gold: {call_type: disturbance, weapon_present: false, violence: true, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: positive_bat_short_answer
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "A man is walking up and down my street looking into people's yards."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "Yes, a baseball bat."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent and nobody has threatened anyone."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+    gold: {call_type: suspicious, weapon_present: true, violence: false, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: positive_kitchen_fire
+    category: positive
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "I am calling from my grandmother's house."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "Yes, the kitchen is on fire and my grandmother is still upstairs."]
+    gold: {call_type: [other, wellbeing_check], weapon_present: false, violence: false, injury: null, immediate_danger: true, caller_requests_cress: null}
+
+  # ---------------------------------------------------------------- unlabelled
+  - id: unlabelled_all_clear
+    category: unlabelled
+    text: "This call is a simulation and is being recorded. How can I help? My neighbor has not come out of his house in four days. Are there any weapons involved? No, there are no weapons. Has anyone been violent or threatened anyone? No, nobody has been violent. Is anyone injured? No, nobody is injured. Is anyone in immediate danger? No, nobody is in immediate danger."
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: unlabelled_one_hedge
+    category: unlabelled
+    text: "This call is a simulation and is being recorded. How can I help? My neighbor has not come out of her house since the weekend. Are there any weapons involved? No, there are no weapons. Has anyone been violent or threatened anyone? No, nobody has been violent. Is anyone injured? I don't know, I can't see her. Is anyone in immediate danger? No, nobody is in immediate danger."
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: null, immediate_danger: false, caller_requests_cress: null}
+
+  - id: unlabelled_knife
+    category: unlabelled
+    text: "This call is a simulation and is being recorded. How can I help? There is a man shouting in the stairwell of my building. Are there any weapons involved? Yes, he has a knife in his hand. Has anyone been violent or threatened anyone? No, nobody has been violent. Is anyone injured? No, nobody is injured."
+    gold: {call_type: disturbance, weapon_present: true, violence: false, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  - id: unlabelled_no_answers
+    category: unlabelled
+    text: "This call is a simulation and is being recorded. How can I help? Hi, I am calling about the house across the street. Are there any weapons involved? Hello? Has anyone been violent or threatened anyone? Hello, are you still there? I think we lost the connection."
+    gold: {call_type: [null, other], weapon_present: null, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  # ---------------------------------------------------------------- partial
+  - id: partial_weapons_violence
+    category: partial
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My coworker did not show up today and she is not answering her phone."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  - id: partial_injury_danger
+    category: partial
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "Two neighbors are yelling at each other across the fence about a tree."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+    gold: {call_type: disturbance, weapon_present: null, violence: null, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: partial_weapons_only
+    category: partial
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "There is a van I do not recognize idling outside the elementary school."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+    gold: {call_type: suspicious, weapon_present: false, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  - id: partial_none_asked
+    category: partial
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My upstairs neighbor runs a treadmill at midnight every night and the whole ceiling shakes."]
+      - [dispatcher, "What is your address?"]
+      - [caller, "I would rather not say on a recorded line."]
+    gold: {call_type: noise_complaint, weapon_present: null, violence: null, injury: null, immediate_danger: null, caller_requests_cress: null}
+
+  - id: partial_three_of_four
+    category: partial
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "An elderly woman is sitting alone at the bus shelter and the last bus left an hour ago."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: null, caller_requests_cress: null}
+
+  # ---------------------------------------------------------------- request
+  - id: request_asks_for_cress
+    category: request
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My son is having a hard night and is sitting on the kitchen floor crying."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+      - [caller, "Can you send the CRESS responders instead of the police?"]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: true}
+
+  - id: request_refuses_cress
+    category: request
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "Someone keeps walking through my backyard at night."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+      - [dispatcher, "We can send community responders to talk with you."]
+      - [caller, "No. I do not want community responders, I want a police officer."]
+    gold: {call_type: suspicious, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: false}
+
+  - id: request_mentions_only
+    category: request
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "The man in the next apartment has been knocking on everyone's doors asking what day it is."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+      - [caller, "My landlord told me the CRESS team came out to see him once last year."]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: null}
+
+  - id: request_no_police_plain
+    category: request
+    lines:
+      - [dispatcher, "This call is a simulation and is being recorded. How can I help?"]
+      - [caller, "My sister has locked herself in her room after an argument with our mother and she will not talk to us."]
+      - [dispatcher, "Are there any weapons involved?"]
+      - [caller, "No, there are no weapons."]
+      - [dispatcher, "Has anyone been violent or threatened anyone?"]
+      - [caller, "No, nobody has been violent."]
+      - [dispatcher, "Is anyone injured?"]
+      - [caller, "No, nobody is injured."]
+      - [dispatcher, "Is anyone in immediate danger?"]
+      - [caller, "No, nobody is in immediate danger."]
+      - [caller, "We do not want police here. Is there anyone else who can come?"]
+    gold: {call_type: wellbeing_check, weapon_present: false, violence: false, injury: false, immediate_danger: false, caller_requests_cress: true}

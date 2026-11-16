@@ -212,15 +212,16 @@ def build_user_message(transcript: str) -> str:
     )
 
 
-def extract_incident(transcript: str) -> ExtractionResult:
-    if not transcript.strip():
-        raise ValueError("Transcript cannot be empty")
+def propose(transcript: str, model: str | None = None) -> ExtractedIncident | str:
+    """Step 1, the only paid step: ask the model what it thinks was said.
 
-    model = extraction_model()
-
+    Returns the model's proposal, or a short reason if its reply was unusable
+    (which the caller treats as "unknown"). Transport and authentication
+    errors raise.
+    """
     try:
         response = _client().messages.parse(
-            model=model,
+            model=model or extraction_model(),
             max_tokens=MAX_OUTPUT_TOKENS,
             output_format=ExtractedIncident,
             system=SYSTEM_PROMPT,
@@ -229,16 +230,26 @@ def extract_incident(transcript: str) -> ExtractionResult:
     except APIError:
         raise  # transport, auth, rate limit: the caller reports 502
     except (ValidationError, ValueError) as error:
-        return _unknown(model, f"Model output did not match the schema ({type(error).__name__}).")
+        return f"Model output did not match the schema ({type(error).__name__})."
 
     stop_reason = getattr(response, "stop_reason", None)
     if stop_reason in ("refusal", "max_tokens"):
-        return _unknown(model, f"Model stopped early ({stop_reason}).")
+        return f"Model stopped early ({stop_reason})."
 
     extracted = response.parsed_output
     if not isinstance(extracted, ExtractedIncident):
-        return _unknown(model, "Model returned no structured incident.")
+        return "Model returned no structured incident."
 
+    return extracted
+
+
+def verify(
+    extracted: ExtractedIncident, transcript: str, model: str | None = None
+) -> ExtractionResult:
+    """Step 2, deterministic and free: keep only what the transcript supports.
+
+    Every check here can only move an answer toward "unknown".
+    """
     values: dict[str, bool | None] = {}
     evidence: dict[str, str] = {}
     downgraded: dict[str, str] = {}
@@ -291,3 +302,17 @@ def extract_incident(transcript: str) -> ExtractionResult:
         model=model,
         **values,
     )
+
+
+def extract_incident(transcript: str) -> ExtractionResult:
+    """The model proposes, plain code verifies."""
+    if not transcript.strip():
+        raise ValueError("Transcript cannot be empty")
+
+    model = extraction_model()
+    proposal = propose(transcript, model)
+
+    if isinstance(proposal, str):
+        return _unknown(model, proposal)
+
+    return verify(proposal, transcript, model)
