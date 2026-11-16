@@ -42,8 +42,12 @@ def test_scripted_call_emits_started_speech_ended():
     with TestClient(app) as client:
         with client.websocket_connect("/ws/transcript") as ws:
             response = client.post("/scenarios/hidden_knife/play?speed=100")
-            assert response.json() == {"status": "started"}
+            body = response.json()
+            assert body["status"] == "started" and len(body["call_id"]) == 32
             events = collect_until_ended(ws)
+
+    # Every event of the call, markers included, carries the same call ID.
+    assert {e["call_id"] for e in events} == {body["call_id"]}
 
     assert events[0]["text"] == "__call_started__"
     assert events[-1]["text"] == "__call_ended__"
@@ -75,14 +79,14 @@ def test_one_session_at_a_time_and_end_cancels_script():
 
 def test_microphone_worker_failure_sends_error_marker(monkeypatch):
     posted = []
-    monkeypatch.setattr(main, "post_system_event", posted.append)
+    monkeypatch.setattr(main, "post_system_event", lambda *args: posted.append(args))
     # Importing the real audio script fails or is replaced here; either way,
     # an exception must produce ERROR, never ENDED.
     monkeypatch.setitem(sys.modules, "scripts.live_microphone", None)
 
-    main.microphone_worker(object())
+    main.microphone_worker(object(), "call-1234")
 
-    assert posted == ["__call_error__"]
+    assert posted == [("__call_error__", "call-1234")]
 
 
 def test_screen_endpoint_flags_without_ai():

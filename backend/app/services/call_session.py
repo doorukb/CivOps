@@ -12,8 +12,10 @@ CALL_ENDED = "__call_ended__"
 CALL_ERROR = "__call_error__"
 
 
-def system_event(marker: str) -> TranscriptEvent:
-    return TranscriptEvent(speaker="system", text=marker, is_final=True, t=0.0)
+def system_event(marker: str, call_id: str | None = None) -> TranscriptEvent:
+    return TranscriptEvent(
+        speaker="system", text=marker, is_final=True, t=0.0, call_id=call_id
+    )
 
 
 @dataclass(frozen=True)
@@ -85,18 +87,22 @@ async def play_scenario(
     scenario_id: str,
     broadcast: Callable[[TranscriptEvent], Awaitable[object]],
     speed: float = 1.0,
+    call_id: str | None = None,
 ) -> None:
+    """Replay a scripted call. Every event carries `call_id`."""
     scenario = SCENARIOS[scenario_id]  # KeyError before STARTED: nothing to close
     t = 0.0
     marker = CALL_ENDED
 
-    await broadcast(system_event(CALL_STARTED))
+    await broadcast(system_event(CALL_STARTED, call_id))
     try:
         for speaker, text in scenario.lines:
             words = text.split()
             partial = " ".join(words[: max(1, len(words) // 2)])
             await broadcast(
-                TranscriptEvent(speaker=speaker, text=partial, is_final=False, t=t)
+                TranscriptEvent(
+                    speaker=speaker, text=partial, is_final=False, t=t, call_id=call_id
+                )
             )
 
             pause = max(1.2, 0.28 * len(words)) / speed
@@ -104,7 +110,9 @@ async def play_scenario(
             t += pause
 
             await broadcast(
-                TranscriptEvent(speaker=speaker, text=text, is_final=True, t=t)
+                TranscriptEvent(
+                    speaker=speaker, text=text, is_final=True, t=t, call_id=call_id
+                )
             )
     except Exception:
         # Runs as a background task: log here, the page gets ERROR.
@@ -112,4 +120,4 @@ async def play_scenario(
         logger.exception("Scripted call failed")
     finally:
         # Runs on cancellation too, so End Call still closes cleanly.
-        await broadcast(system_event(marker))
+        await broadcast(system_event(marker, call_id))

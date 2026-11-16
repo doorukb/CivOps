@@ -11,6 +11,9 @@ MAX_EVENT_TEXT_CHARS = 2_000
 MAX_AUDIT_RECORDS = 5_000
 MAX_SIMULATION_INCIDENTS = 20_000
 
+# A call ID is an opaque token (a UUID in practice).
+CALL_ID_PATTERN = r"^[A-Za-z0-9_-]{8,64}$"
+
 
 class CallType(StrEnum):
     WELLBEING_CHECK = "wellbeing_check"
@@ -150,3 +153,6 @@ class TranscriptEvent(BaseModel):
     text: str = Field(max_length=MAX_EVENT_TEXT_CHARS)
     is_final: bool
     t: float = Field(ge=0)
+    # Which call this event belongs to, so a late event from one call can
+    # never be mistaken for part of the next.
+    call_id: str | None = Field(default=None, pattern=CALL_ID_PATTERN)
