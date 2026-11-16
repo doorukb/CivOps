@@ -1,8 +1,8 @@
 from fastapi import APIRouter
+
 from app.models import AuditRequest
 from app.services.audit import audit_calls, summarize_audit
 from app.services.synthetic import generate_synthetic_month
-
 
 router = APIRouter(prefix="/audit", tags=["Monthly Audit"])
 

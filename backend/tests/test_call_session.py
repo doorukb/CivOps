@@ -66,7 +66,7 @@ def test_each_line_is_partial_then_final_between_markers():
     assert events[-1].text == CALL_ENDED
     body = events[1:-1]
     assert len(body) == 2 * len(lines)
-    for (speaker, text), partial, final in zip(lines, body[::2], body[1::2]):
+    for (speaker, text), partial, final in zip(lines, body[::2], body[1::2], strict=True):
         assert not partial.is_final and final.is_final
         assert final.text == text and final.speaker == partial.speaker == speaker
         assert len(partial.text.split()) <= len(text.split()) // 2 or len(text.split()) == 1

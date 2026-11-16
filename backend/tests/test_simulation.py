@@ -17,8 +17,8 @@ def test_invalid_team_count():
     with pytest.raises(ValidationError):
         SimulationConfig(teams=0)
 
-from app.services.simulator import build_scenario_rulebook
 from app.services.rule_engine import load_rulebook
+from app.services.simulator import build_scenario_rulebook
 
 
 def test_scenario_rulebook():
@@ -107,7 +107,6 @@ def test_simultaneous_arrivals():
     assert result.handled_calls == 1
     assert result.missed_busy == 2
 
-import pytest
 
 
 def test_utilization():
@@ -258,7 +257,7 @@ def test_both_scenarios_see_the_same_calls(monkeypatch):
     run_comparison(SimulationConfig(), SimulationConfig(end_hour=20), replications=5)
 
     assert len(seen) == 10
-    for baseline, scenario in zip(seen[::2], seen[1::2]):
+    for baseline, scenario in zip(seen[::2], seen[1::2], strict=True):
         assert baseline == scenario  # same calls, same duration multipliers
 
 
@@ -279,8 +278,9 @@ def test_twenty_teams_reproduce_brief_coverage(config, expected):
 
 
 def _replications(n=20):
-    from app.services.leap_arrivals import duration_multiplier, generate_calls
     import random
+
+    from app.services.leap_arrivals import duration_multiplier, generate_calls
 
     start = date(2026, 1, 5)
     for seed in range(n):

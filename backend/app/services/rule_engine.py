@@ -1,12 +1,10 @@
-from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
-from app.services.tripwires import scan_transcript
 
 import yaml
 
-from app.models import Incident, Decision, Destination
-
+from app.models import Decision, Destination, Incident
+from app.services.tripwires import scan_transcript
 
 RULEBOOK_PATH = (
     Path(__file__).resolve().parents[2] / "rules" / "dispatch.yaml"
@@ -14,7 +12,7 @@ RULEBOOK_PATH = (
 
 
 def load_rulebook():
-    with open(RULEBOOK_PATH, "r", encoding="utf-8") as file:
+    with open(RULEBOOK_PATH, encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 

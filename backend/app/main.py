@@ -12,16 +12,18 @@ from starlette.websockets import WebSocketClose
 from app.api.audit import router as audit_router
 from app.api.simulation import router as simulation_router
 from app.models import Decision, EvaluationRequest, Incident, TranscriptEvent
-from app.services.extractor import extract_incident
-from app.services.rule_engine import evaluate_incident
 from app.services.call_session import (
     CALL_ENDED,
     CALL_ERROR,
     CALL_STARTED,
     SCENARIOS,
-    play_scenario as run_scenario,
     system_event,
 )
+from app.services.call_session import (
+    play_scenario as run_scenario,
+)
+from app.services.extractor import extract_incident
+from app.services.rule_engine import evaluate_incident
 from app.services.tripwires import scan_transcript
 
 logger = logging.getLogger(__name__)
@@ -109,7 +111,7 @@ def extract_call(request: ExtractionRequest):
         raise HTTPException(
             status_code=502,
             detail="AI extraction service unavailable"
-        )
+        ) from error
 
 
 @app.post("/calls/screen")

@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from app.models import Incident, SimulationConfig, SimulationResult
 from app.services.simulator import run_comparison, simulate_incidents
 
-
 router = APIRouter(prefix="/simulation", tags=["What-If Simulator"])
 
 

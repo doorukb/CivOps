@@ -2,7 +2,7 @@ import re
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.models import CallType, Incident
 

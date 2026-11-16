@@ -1,6 +1,7 @@
-from app.models import AuditRecord, Incident, Destination
-from app.services.audit import audit_calls
 import pytest
+
+from app.models import AuditRecord, Destination, Incident
+from app.services.audit import audit_calls
 
 
 def test_audit_record():

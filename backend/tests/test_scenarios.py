@@ -23,7 +23,7 @@ def test_importing_app_does_not_load_audio_stack():
         "assert 'sounddevice' not in sys.modules; "
         "assert 'scripts.live_microphone' not in sys.modules"
     )
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - fixed argv, our own interpreter
         [sys.executable, "-c", code], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr

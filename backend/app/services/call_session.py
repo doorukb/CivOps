@@ -1,7 +1,7 @@
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable
 
 from app.models import TranscriptEvent
 

@@ -1,4 +1,4 @@
-from app.models import Incident, Destination
+from app.models import Destination, Incident
 from app.services.rule_engine import evaluate_incident
 
 

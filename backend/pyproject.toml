@@ -1,0 +1,31 @@
+# Tooling configuration only. Dependencies are pinned in requirements.txt.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+# F: pyflakes, E9: syntax errors, B: bugbear, S: security (bandit), UP: pyupgrade, I: import order
+select = ["F", "E9", "B", "S", "UP", "I"]
+ignore = [
+    # random.Random is used only for seeded, reproducible simulation and
+    # synthetic data. Nothing here is cryptographic.
+    "S311",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # pytest uses plain assert
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "eval", "scripts"]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true

@@ -70,7 +70,7 @@ def generate_calls(
     LEAP's ~2,420 appropriate calls per year (~47/week) are post-screening,
     so every generated call has already passed the safety questions.
     """
-    types, type_weights = zip(*CALL_TYPE_WEIGHTS)
+    types, type_weights = zip(*CALL_TYPE_WEIGHTS, strict=True)
     calls = []
 
     for offset in range(7 * weeks):

@@ -1,18 +1,17 @@
 
+import os
 import queue
 import threading
 import time
+from urllib.request import Request, urlopen
 
 import sounddevice as sd
-from dotenv import load_dotenv
 from deepgram import DeepgramClient
 from deepgram.core.events import EventType
 from deepgram.listen.v1.types import ListenV1Results
-from app.models import TranscriptEvent
+from dotenv import load_dotenv
 
-import json
-import os
-from urllib.request import Request, urlopen
+from app.models import TranscriptEvent
 
 load_dotenv()
 

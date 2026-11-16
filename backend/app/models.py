@@ -1,10 +1,10 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, model_validator
 
 
-class CallType(str, Enum):
+class CallType(StrEnum):
     WELLBEING_CHECK = "wellbeing_check"
     DISTURBANCE = "disturbance"
     SUSPICIOUS = "suspicious"
@@ -27,7 +27,7 @@ class Incident(BaseModel):
 
     evidence: dict[str, str] = Field(default_factory=dict)
 
-class Destination(str, Enum):
+class Destination(StrEnum):
     CRESS = "cress"
     POLICE = "police"
     FIRE_EMS = "fire_ems"

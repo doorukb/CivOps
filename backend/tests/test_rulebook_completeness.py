@@ -25,7 +25,7 @@ HALF_HOURS = [MONDAY + timedelta(minutes=30 * i) for i in range(7 * 48)]
 def outcomes():
     rows = []
     for call_type, pattern, when in product(CALL_TYPES, PATTERNS, HALF_HOURS):
-        incident = Incident(call_type=call_type, timestamp=when, **dict(zip(SAFETY, pattern)))
+        incident = Incident(call_type=call_type, timestamp=when, **dict(zip(SAFETY, pattern, strict=True)))
         rows.append((pattern, evaluate_incident(incident, RULEBOOK)))
     return rows
 

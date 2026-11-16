@@ -1,14 +1,14 @@
 import random
+from copy import deepcopy
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
 import numpy as np
 import simpy
 
-from app.models import SimulationConfig, SimulationResult
-from copy import deepcopy
-from app.models import Incident
-from app.services.rule_engine import evaluate_incident, load_rulebook
+from app.models import Incident, SimulationConfig, SimulationResult
 from app.services.leap_arrivals import duration_multiplier, generate_calls
-from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from app.services.rule_engine import evaluate_incident, load_rulebook
 
 
 def build_scenario_rulebook(config: SimulationConfig) -> dict:
@@ -57,7 +57,7 @@ def simulate_incidents(
 
     # Sort calls by arrival time, each with its own duration multiplier
     sorted_pairs = sorted(
-        zip(incidents, duration_multipliers),
+        zip(incidents, duration_multipliers, strict=True),
         key=lambda pair: pair[0].timestamp
     )
     sorted_incidents = [incident for incident, _ in sorted_pairs]

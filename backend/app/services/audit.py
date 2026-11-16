@@ -1,6 +1,7 @@
+from zoneinfo import ZoneInfo
+
 from app.models import AuditRecord
 from app.services.rule_engine import evaluate_incident
-from zoneinfo import ZoneInfo
 
 
 def audit_calls(records: list[AuditRecord]) -> list[dict]:
